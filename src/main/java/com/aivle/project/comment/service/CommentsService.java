@@ -12,6 +12,7 @@ import com.aivle.project.post.repository.PostsRepository;
 import com.aivle.project.user.entity.UserEntity;
 import com.aivle.project.user.repository.UserRepository;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,6 +70,11 @@ public class CommentsService {
 		return CommentResponse.from(saved);
 	}
 
+	public CommentResponse create(UUID userUuid, CommentCreateRequest request) {
+		Long userId = findUser(userUuid).getId();
+		return create(userId, request);
+	}
+
 	public CommentResponse update(Long userId, Long commentId, CommentUpdateRequest request) {
 		validateUserId(userId);
 		CommentsEntity comment = findComment(commentId);
@@ -78,11 +84,21 @@ public class CommentsService {
 		return CommentResponse.from(comment);
 	}
 
+	public CommentResponse update(UUID userUuid, Long commentId, CommentUpdateRequest request) {
+		Long userId = findUser(userUuid).getId();
+		return update(userId, commentId, request);
+	}
+
 	public void delete(Long userId, Long commentId) {
 		validateUserId(userId);
 		CommentsEntity comment = findComment(commentId);
 		validateOwner(comment, userId);
 		comment.markDeleted(userId);
+	}
+
+	public void delete(UUID userUuid, Long commentId) {
+		Long userId = findUser(userUuid).getId();
+		delete(userId, commentId);
 	}
 
 	private CommentsEntity findComment(Long commentId) {
@@ -98,6 +114,11 @@ public class CommentsService {
 
 	private UserEntity findUser(Long userId) {
 		return userRepository.findByIdAndDeletedAtIsNull(userId)
+			.orElseThrow(() -> new CommonException(CommonErrorCode.COMMON_404));
+	}
+
+	private UserEntity findUser(UUID userUuid) {
+		return userRepository.findByUuidAndDeletedAtIsNull(userUuid)
 			.orElseThrow(() -> new CommonException(CommonErrorCode.COMMON_404));
 	}
 

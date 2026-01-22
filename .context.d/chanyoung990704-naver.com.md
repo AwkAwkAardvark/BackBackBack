@@ -6,6 +6,10 @@
 - email: chanyoung990704@naver.com
 
 ## 2. Recent Notes (최근 메모)
+- 2026-01-22 | 작업: 댓글 CRUD 컨트롤러 및 통합 테스트 추가 | 결과: CommentController와 CRUD 통합 테스트 추가, 전체 테스트 통과 | 이슈: 없음
+- 2026-01-22 | 작업: Repository 슬라이스 테스트 추가 | 결과: PostsRepository/CommentsRepository DataJpaTest 추가 및 전체 테스트 통과 | 이슈: 없음
+- 2026-01-22 | 작업: AccessTokenBlacklistService 단위 테스트 추가 | 결과: 블랙리스트/로그아웃 기준 로직 단위 테스트와 전체 테스트 통과 | 이슈: 없음
+- 2026-01-22 | 작업: 서비스 레이어 단위 테스트 추가 | 결과: PostService/UserDomainService 테스트 추가 및 전체 테스트 통과 | 이슈: 없음
 - 2026-01-22 | 작업: 게시글 JWT 컨트롤러/페이징 및 테스트 보강 | 결과: /posts 페이징 API 및 JWT subject 검증 테스트 추가, CommonException 핸들러 추가 | 이슈: 없음
 - 2026-01-21 | 작업: RefreshTokenServiceTest 불필요 스텁 제거 | 결과: 테스트별로 Redis 스텁 주입하도록 변경 | 이슈: 없음
 - 2026-01-21 | 작업: 회원가입 API 추가 | 결과: /auth/signup, USER 역할 매핑, 서비스/DTO/테스트 추가 | 이슈: 없음

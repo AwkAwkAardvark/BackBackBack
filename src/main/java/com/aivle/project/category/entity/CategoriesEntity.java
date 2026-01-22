@@ -41,4 +41,24 @@ public class CategoriesEntity extends BaseEntity {
 
 	@Column(name = "updated_by")
 	private Long updatedBy;
+
+	/**
+	 * 카테고리 생성.
+	 */
+	public static CategoriesEntity create(
+		String name,
+		String description,
+		int sortOrder,
+		boolean isActive,
+		Long actorId
+	) {
+		CategoriesEntity category = new CategoriesEntity();
+		category.name = name;
+		category.description = description;
+		category.sortOrder = sortOrder;
+		category.isActive = isActive;
+		category.createdBy = actorId;
+		category.updatedBy = actorId;
+		return category;
+	}
 }

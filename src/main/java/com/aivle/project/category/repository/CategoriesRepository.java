@@ -1,6 +1,7 @@
 package com.aivle.project.category.repository;
 
 import com.aivle.project.category.entity.CategoriesEntity;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,4 +11,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CategoriesRepository extends JpaRepository<CategoriesEntity, Long> {
 
 	Optional<CategoriesEntity> findByIdAndDeletedAtIsNull(Long id);
+
+	List<CategoriesEntity> findAllByDeletedAtIsNullOrderBySortOrderAscIdAsc();
 }
