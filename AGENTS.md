@@ -17,6 +17,7 @@
 * **Minimal Changes:** 불필요한 리팩토링이나 스타일 변경을 피하고, 요청된 범위만 수정한다.
 * **Ask Before Assume:** 요구 사항이 모호하거나 여러 해석이 가능한 경우, 추측하여 코딩하지 말고 먼저 질문한다.
 * **Immutable Files:** 자동 생성 파일(build/, dist/, .generated 등)은 직접 수정하지 않는다.
+* **Granular Edits:** 파일 수정 시 전체 덮어쓰기(Overwrite)를 지양하고, 반드시 `replace` 도구를 사용하여 변경이 필요한 부분만 정확히 수정한다. (코드 리뷰 가독성 보장)
 
 ## **2\. 보안 및 안전 수칙 (Security & Safety)**
 
