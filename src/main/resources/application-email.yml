@@ -1,0 +1,23 @@
+# 이메일 설정
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${EMAIL_USERNAME:your-email@gmail.com}
+    password: ${EMAIL_PASSWORD:your-app-password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+# 이메일 인증 설정
+app:
+  email:
+    verification:
+      expire-minutes: 30
+      token-length: 32

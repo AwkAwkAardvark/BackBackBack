@@ -83,4 +83,11 @@ public class UserEntity extends BaseEntity {
 		status = UserStatus.INACTIVE;
 		delete();
 	}
+
+	/**
+	 * 사용자 상태 변경.
+	 */
+	public void setStatus(UserStatus status) {
+		this.status = status;
+	}
 }

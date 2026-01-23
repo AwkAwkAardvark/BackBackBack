@@ -34,7 +34,7 @@ public class UserDomainService {
 			encodedPassword,
 			name,
 			phone,
-			UserStatus.ACTIVE
+			UserStatus.PENDING  // 이메일 인증 대기 상태
 		);
 		userRepository.save(user);
 
@@ -43,5 +43,24 @@ public class UserDomainService {
 		userRoleRepository.save(new UserRoleEntity(user, role));
 
 		return user;
+	}
+
+	/**
+	 * 사용자 활성화 (이메일 인증 완료 시).
+	 */
+	@Transactional
+	public void activateUser(Long userId) {
+		UserEntity user = userRepository.findById(userId)
+			.orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+		user.setStatus(UserStatus.ACTIVE);
+		userRepository.save(user);
+	}
+
+	/**
+	 * 사용자 조회.
+	 */
+	public UserEntity getUserById(Long userId) {
+		return userRepository.findById(userId)
+			.orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 	}
 }

@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+/FILE_UPLOAD_PLAN.md
+/repomix-output.xml
+/CODEBASE_ANALYSIS.md

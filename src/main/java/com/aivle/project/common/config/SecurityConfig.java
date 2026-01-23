@@ -61,7 +61,16 @@ public class SecurityConfig {
 			.csrf(AbstractHttpConfigurer::disable)
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(authorize -> authorize
-				.requestMatchers("/auth/login", "/auth/refresh", "/auth/signup", "/auth/console/**", "/dev/console", "/error").permitAll()
+				.requestMatchers(
+					"/auth/login",
+					"/auth/refresh",
+					"/auth/signup",
+					"/auth/console/**",
+					"/api/auth/verify-email",
+					"/api/auth/resend-verification",
+					"/dev/console",
+					"/error"
+				).permitAll()
 				.requestMatchers("/dev/categories").permitAll()
 				.requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
 				.anyRequest().authenticated()

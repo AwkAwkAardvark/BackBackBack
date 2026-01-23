@@ -11,6 +11,7 @@ import com.aivle.project.user.security.CustomUserDetails;
 import com.aivle.project.user.security.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -66,6 +67,8 @@ public class AuthService {
 	private Authentication authenticate(String email, String password) {
 		try {
 			return authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, password));
+		} catch (DisabledException ex) {
+			throw new AuthException(AuthErrorCode.EMAIL_VERIFICATION_REQUIRED);
 		} catch (AuthenticationException ex) {
 			throw new AuthException(AuthErrorCode.INVALID_CREDENTIALS);
 		}

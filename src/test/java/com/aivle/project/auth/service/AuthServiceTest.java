@@ -25,6 +25,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
@@ -161,6 +162,25 @@ class AuthServiceTest {
 			.isInstanceOf(AuthException.class);
 
 		verifyNoInteractions(jwtTokenService, refreshTokenService);
+	}
+
+	@Test
+	@DisplayName("이메일 미인증 사용자는 로그인 실패 메시지가 다르게 반환된다")
+	void login_shouldThrowWhenEmailNotVerified() {
+		// given: 이메일 미인증 상태를 준비
+		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, userDetailsService);
+
+		LoginRequest request = new LoginRequest();
+		request.setEmail("user@example.com");
+		request.setPassword("password");
+
+		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+			.thenThrow(new DisabledException("disabled"));
+
+		// when & then: 이메일 인증 필요 예외가 발생한다
+		assertThatThrownBy(() -> authService.login(request, "127.0.0.1"))
+			.isInstanceOf(AuthException.class)
+			.hasMessage(AuthErrorCode.EMAIL_VERIFICATION_REQUIRED.getMessage());
 	}
 
 	@Test

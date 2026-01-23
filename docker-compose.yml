@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7.0
+    container_name: project-redis
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
