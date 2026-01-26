@@ -1,6 +1,10 @@
 package com.aivle.project.auth.controller;
 
 import com.aivle.project.common.dto.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,15 +22,25 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @Profile("dev")
 @Controller
 @RequestMapping("/auth/console")
+@Tag(name = "개발", description = "개발용 인증 콘솔 API")
 public class AuthConsoleController {
 
 	@GetMapping
+	@Operation(hidden = true)
 	public String console() {
 		return "auth-console";
 	}
 
 	@GetMapping("/claims")
 	@ResponseBody
+	@Operation(summary = "토큰 클레임 조회", description = "현재 토큰의 클레임을 확인합니다.")
+	@SecurityRequirement(name = "bearerAuth")
+	@ApiResponses({
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요"),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음"),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류")
+	})
 	public ApiResponse<Map<String, Object>> claims(@AuthenticationPrincipal Jwt jwt) {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("sub", jwt.getSubject());

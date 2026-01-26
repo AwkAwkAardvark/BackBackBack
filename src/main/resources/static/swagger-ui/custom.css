@@ -1,0 +1,41 @@
+/* Swagger UI custom theme */
+:root {
+  --primary-color: #0f766e;
+  --primary-hover: #0d5f57;
+  --bg-soft: #f6f7f9;
+}
+
+body {
+  background: var(--bg-soft);
+}
+
+.swagger-ui .topbar {
+  background: #0f172a;
+  border-bottom: 2px solid #0f766e;
+}
+
+.swagger-ui .topbar a {
+  color: #e2e8f0;
+}
+
+.swagger-ui .btn.execute {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.swagger-ui .btn.execute:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.swagger-ui .opblock.opblock-post .opblock-summary-method {
+  background: #0ea5e9;
+}
+
+.swagger-ui .opblock.opblock-get .opblock-summary-method {
+  background: #22c55e;
+}
+
+.swagger-ui .opblock.opblock-delete .opblock-summary-method {
+  background: #ef4444;
+}

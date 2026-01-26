@@ -6,6 +6,23 @@
 - email: chanyoung990704@naver.com
 
 ## 2. Recent Notes (최근 메모)
+- 2026-01-25 | 작업: SpringDoc 버전 재업데이트 | 결과: 2.6.0 -> 2.8.15로 변경하여 Spring 6.2 호환성 확보 | 이슈: 확인 중
+- 2026-01-25 | 작업: SpringDoc 버전 업그레이드 | 결과: 2.3.0 -> 2.6.0로 변경하여 OpenAPI 생성 오류 대응 | 이슈: 확인 중
+- 2026-01-25 | 작업: 작업 에이전트 워크플로우 문서화 | 결과: 단위 작업/테스트/커밋/종합 테스트 절차 명시 | 이슈: 없음
+- 2026-01-25 | 작업: Swagger 공개 경로 보안 허용 | 결과: /swagger-ui, /api-docs 인증 예외 처리 | 이슈: 없음
+- 2026-01-25 | 작업: Swagger API 버전 관리 설정 | 결과: OpenAPI 버전/베이스 경로 설정값 추가 | 이슈: 없음
+- 2026-01-25 | 작업: Swagger UI 커스텀 테마 적용 | 결과: custom.css 추가 및 springdoc 설정 반영 | 이슈: 없음
+- 2026-01-25 | 작업: API 예외 응답 문서화 | 결과: 주요 컨트롤러에 400/401/403/404/500 응답 정의 추가 | 이슈: 없음
+- 2026-01-25 | 작업: 에러 응답 Swagger 스키마 추가 | 결과: ErrorResponse/FieldErrorResponse에 @Schema 적용 | 이슈: 없음
+- 2026-01-25 | 작업: 개발/콘솔 및 이메일 인증 API 문서화 | 결과: EmailVerification/Dev/AuthConsole 컨트롤러에 Swagger 메타데이터 추가 | 이슈: 없음
+- 2026-01-25 | 작업: 파일 컨트롤러 Swagger 문서화 | 결과: File 업로드/조회/다운로드 API에 Tag/Operation/Response/파라미터 설명 추가 | 이슈: 없음
+- 2026-01-25 | 작업: Swagger 보안/공개 엔드포인트 정리 | 결과: 공개 엔드포인트 security 비활성화, 파일 API에 보안 요구사항 추가 | 이슈: 없음
+- 2026-01-25 | 작업: 핵심 컨트롤러 Swagger 문서화 | 결과: Auth/Post/Comment 컨트롤러에 Tag/Operation/Response/보안 요구사항 추가 | 이슈: 없음
+- 2026-01-25 | 작업: 파일 DTO Swagger 스키마 추가 | 결과: FileResponse에 @Schema 적용 | 이슈: 없음
+- 2026-01-25 | 작업: 핵심 DTO Swagger 스키마 추가 | 결과: Auth/Post/Comment/ApiResponse DTO에 @Schema 적용 | 이슈: 없음
+- 2026-01-25 | 작업: Swagger 기본 설정 추가 | 결과: OpenApiConfig 생성 및 springdoc 설정 추가 | 이슈: 없음
+- 2026-01-25 | 작업: test 프로파일 파일 스토리지 스텁 추가 | 결과: TestFileStorageConfig로 FileStorageService 기본 빈 제공, EmailVerificationServiceTest에서 스텁 의존 제거 | 이슈: 없음
+- 2026-01-25 | 작업: 전체 테스트 실패 원인 분석 및 수정 | 결과: EmailVerificationServiceTest에 FileStorageService MockBean 추가로 컨텍스트 로딩 실패 해결 | 이슈: 없음
 - 2026-01-23 | 작업: 파일 조회/다운로드 및 콘솔 화면 개선 | 결과: 파일 목록/다운로드 API 추가 및 dev 콘솔에서 조회 지원 | 이슈: 없음
 - 2026-01-23 | 작업: 파일 업로드 콘솔 페이지 추가 | 결과: /dev/file-console 템플릿 및 링크 추가 | 이슈: 없음
 - 2026-01-23 | 작업: 파일 업로드 통합/설정 테스트 추가 | 결과: MockMvc 통합, 설정 바인딩, 스텁 스토리지 테스트 추가 | 이슈: 없음

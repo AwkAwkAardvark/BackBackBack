@@ -1,6 +1,7 @@
 package com.aivle.project.auth.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -12,12 +13,14 @@ import lombok.Setter;
 /**
  * 회원가입 요청 DTO.
  */
+@Schema(description = "회원가입 요청")
 @Getter
 @Setter
 public class SignupRequest {
 
 	@NotBlank
 	@Email
+	@Schema(description = "이메일", example = "user@example.com")
 	private String email;
 
 	@NotBlank
@@ -26,13 +29,16 @@ public class SignupRequest {
 		regexp = "^(?!.*(.)\\1\\1)(?:(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}|(?:(?=.*[a-zA-Z])(?=.*[0-9])|(?=.*[a-zA-Z])(?=.*[^a-zA-Z0-9])|(?=.*[0-9])(?=.*[^a-zA-Z0-9])).{10,})$",
 		message = "비밀번호는 영문/숫자/특수문자 중 3가지 포함(8자 이상) 또는 2가지 포함(10자 이상)이어야 하며, 3회 이상 연속된 문자를 사용할 수 없습니다."
 	)
+	@Schema(description = "비밀번호(정책: 영문/숫자/특수문자 조합)", example = "P@ssw0rd!")
 	private String password;
 
 	@NotBlank
 	@Size(min = 2, max = 50)
+	@Schema(description = "이름", example = "홍길동")
 	private String name;
 
 	@Size(max = 20)
+	@Schema(description = "전화번호", example = "01012345678")
 	private String phone;
 
 	@JsonIgnore

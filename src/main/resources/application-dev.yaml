@@ -35,4 +35,4 @@ app:
       max-size: 5242880
       max-files: 3
       validate-signature: false
-      upload-dir: C:/upload/files
+      upload-dir: ./upload/files
