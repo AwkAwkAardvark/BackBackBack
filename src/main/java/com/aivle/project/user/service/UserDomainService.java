@@ -63,4 +63,19 @@ public class UserDomainService {
 		return userRepository.findById(userId)
 			.orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 	}
+
+	/**
+	 * 사용자 조회 (Email).
+	 */
+	public UserEntity getUserByEmail(String email) {
+		return userRepository.findByEmail(email)
+			.orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + email));
+	}
+
+	@Transactional
+	public void updatePassword(String email, String encodedPassword) {
+		UserEntity user = userRepository.findByEmail(email)
+			.orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + email));
+		user.changePassword(encodedPassword);
+	}
 }

@@ -69,6 +69,7 @@ public class SecurityConfig {
 					"/auth/login",
 					"/auth/refresh",
 					"/auth/signup",
+					"/auth/change-password",
 					"/auth/console/**",
 					"/api/auth/verify-email",
 					"/api/auth/resend-verification",

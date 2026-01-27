@@ -1,6 +1,7 @@
 package com.aivle.project.auth.controller;
 
 import com.aivle.project.auth.dto.LoginRequest;
+import com.aivle.project.auth.dto.PasswordChangeRequest;
 import com.aivle.project.auth.dto.SignupRequest;
 import com.aivle.project.auth.dto.SignupResponse;
 import com.aivle.project.auth.dto.TokenRefreshRequest;
@@ -64,6 +65,19 @@ public class AuthController {
 	})
 	public ResponseEntity<TokenResponse> refresh(@Valid @RequestBody TokenRefreshRequest request) {
 		return ResponseEntity.ok(authService.refresh(request));
+	}
+
+	@PostMapping("/change-password")
+	@Operation(summary = "비밀번호 변경", description = "비밀번호 만료 시 또는 사용자의 요청으로 비밀번호를 변경합니다.", security = {})
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "비밀번호 변경 성공"),
+		@ApiResponse(responseCode = "400", description = "요청값 오류 또는 기존 비밀번호와 동일"),
+		@ApiResponse(responseCode = "401", description = "기존 비밀번호 불일치"),
+		@ApiResponse(responseCode = "500", description = "서버 오류")
+	})
+	public ResponseEntity<Void> changePassword(@Valid @RequestBody PasswordChangeRequest request) {
+		authService.changePassword(request);
+		return ResponseEntity.ok().build();
 	}
 
 	@PostMapping("/signup")

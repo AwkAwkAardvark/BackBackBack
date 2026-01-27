@@ -20,6 +20,7 @@ public class CustomUserDetails implements UserDetails {
 	private final String email;
 	private final String password;
 	private final UserStatus status;
+	private final java.time.LocalDateTime passwordChangedAt;
 	private final List<GrantedAuthority> authorities;
 
 	private CustomUserDetails(
@@ -28,6 +29,7 @@ public class CustomUserDetails implements UserDetails {
 		String email,
 		String password,
 		UserStatus status,
+		java.time.LocalDateTime passwordChangedAt,
 		List<GrantedAuthority> authorities
 	) {
 		this.id = id;
@@ -35,6 +37,7 @@ public class CustomUserDetails implements UserDetails {
 		this.email = email;
 		this.password = password;
 		this.status = status;
+		this.passwordChangedAt = passwordChangedAt;
 		this.authorities = authorities;
 	}
 
@@ -50,6 +53,7 @@ public class CustomUserDetails implements UserDetails {
 			user.getEmail(),
 			user.getPassword(),
 			user.getStatus(),
+			user.getPasswordChangedAt(),
 			authorities
 		);
 	}
@@ -93,7 +97,10 @@ public class CustomUserDetails implements UserDetails {
 
 	@Override
 	public boolean isCredentialsNonExpired() {
-		return true;
+		if (passwordChangedAt == null) {
+			return true;
+		}
+		return passwordChangedAt.plusDays(90).isAfter(java.time.LocalDateTime.now());
 	}
 
 	@Override

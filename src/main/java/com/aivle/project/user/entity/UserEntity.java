@@ -43,6 +43,9 @@ public class UserEntity extends BaseEntity {
 	@Column(name = "password", nullable = false, length = 255)
 	private String password;
 
+	@Column(name = "password_changed_at")
+	private java.time.LocalDateTime passwordChangedAt;
+
 	@Column(name = "name", nullable = false, length = 50)
 	private String name;
 
@@ -61,6 +64,9 @@ public class UserEntity extends BaseEntity {
 		if (status == null) {
 			status = UserStatus.PENDING;
 		}
+		if (passwordChangedAt == null) {
+			passwordChangedAt = java.time.LocalDateTime.now();
+		}
 	}
 
 	/**
@@ -73,6 +79,7 @@ public class UserEntity extends BaseEntity {
 		user.name = name;
 		user.phone = phone;
 		user.status = status;
+		user.passwordChangedAt = java.time.LocalDateTime.now();
 		return user;
 	}
 
@@ -89,5 +96,10 @@ public class UserEntity extends BaseEntity {
 	 */
 	public void setStatus(UserStatus status) {
 		this.status = status;
+	}
+
+	public void changePassword(String newPassword) {
+		this.password = newPassword;
+		this.passwordChangedAt = java.time.LocalDateTime.now();
 	}
 }
