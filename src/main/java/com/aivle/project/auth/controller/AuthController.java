@@ -21,8 +21,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,7 +57,13 @@ public class AuthController {
 		@Parameter(hidden = true) HttpServletRequest httpServletRequest
 	) {
 		String ipAddress = resolveIp(httpServletRequest);
-		return ResponseEntity.ok(authService.login(request, ipAddress));
+		TokenResponse response = authService.login(request, ipAddress);
+		
+		ResponseCookie cookie = createRefreshTokenCookie(response.refreshToken(), response.refreshExpiresIn());
+		
+		return ResponseEntity.ok()
+			.header(HttpHeaders.SET_COOKIE, cookie.toString())
+			.body(response);
 	}
 
 	@PostMapping("/refresh")
@@ -66,8 +75,27 @@ public class AuthController {
 		@ApiResponse(responseCode = "401", description = "재발급 실패"),
 		@ApiResponse(responseCode = "500", description = "서버 오류")
 	})
-	public ResponseEntity<TokenResponse> refresh(@Valid @RequestBody TokenRefreshRequest request) {
-		return ResponseEntity.ok(authService.refresh(request));
+	public ResponseEntity<TokenResponse> refresh(
+		@Parameter(hidden = true) @CookieValue(name = "refresh_token", required = false) String cookieRefreshToken,
+		@Valid @RequestBody(required = false) TokenRefreshRequest request
+	) {
+		String refreshToken = (cookieRefreshToken != null) ? cookieRefreshToken : 
+			(request != null ? request.getRefreshToken() : null);
+
+		if (refreshToken == null || refreshToken.isBlank()) {
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+		}
+
+		TokenRefreshRequest refreshRequest = new TokenRefreshRequest();
+		refreshRequest.setRefreshToken(refreshToken);
+		
+		TokenResponse response = authService.refresh(refreshRequest);
+		
+		ResponseCookie cookie = createRefreshTokenCookie(response.refreshToken(), response.refreshExpiresIn());
+		
+		return ResponseEntity.ok()
+			.header(HttpHeaders.SET_COOKIE, cookie.toString())
+			.body(response);
 	}
 
 	@PostMapping("/change-password")
@@ -97,6 +125,16 @@ public class AuthController {
 			@Parameter(hidden = true) HttpServletRequest httpServletRequest) {
 		String clientIp = resolveIp(httpServletRequest);
 		return ResponseEntity.status(HttpStatus.CREATED).body(signUpService.signup(request, clientIp));
+	}
+
+	private ResponseCookie createRefreshTokenCookie(String refreshToken, long maxAgeSeconds) {
+		return ResponseCookie.from("refresh_token", refreshToken)
+			.httpOnly(true)
+			.secure(true)
+			.path("/")
+			.maxAge(maxAgeSeconds)
+			.sameSite("Strict")
+			.build();
 	}
 
 	private String resolveIp(HttpServletRequest request) {
