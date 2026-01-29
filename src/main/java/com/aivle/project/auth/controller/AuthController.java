@@ -1,5 +1,6 @@
 package com.aivle.project.auth.controller;
 
+import com.aivle.project.auth.dto.AuthLoginResponse;
 import com.aivle.project.auth.dto.LoginRequest;
 import com.aivle.project.auth.dto.PasswordChangeRequest;
 import com.aivle.project.auth.dto.SignupRequest;
@@ -47,17 +48,17 @@ public class AuthController {
 	@Operation(summary = "로그인", description = "이메일/비밀번호로 로그인하고 토큰을 발급합니다.", security = {})
 	@ApiResponses({
 		@ApiResponse(responseCode = "200", description = "로그인 성공",
-			content = @Content(schema = @Schema(implementation = TokenResponse.class))),
+			content = @Content(schema = @Schema(implementation = AuthLoginResponse.class))),
 		@ApiResponse(responseCode = "400", description = "요청값 오류"),
 		@ApiResponse(responseCode = "401", description = "인증 실패"),
 		@ApiResponse(responseCode = "500", description = "서버 오류")
 	})
-	public ResponseEntity<TokenResponse> login(
+	public ResponseEntity<AuthLoginResponse> login(
 		@Valid @RequestBody LoginRequest request,
 		@Parameter(hidden = true) HttpServletRequest httpServletRequest
 	) {
 		String ipAddress = resolveIp(httpServletRequest);
-		TokenResponse response = authService.login(request, ipAddress);
+		AuthLoginResponse response = authService.login(request, ipAddress);
 		
 		ResponseCookie cookie = createRefreshTokenCookie(response.refreshToken(), response.refreshExpiresIn());
 		

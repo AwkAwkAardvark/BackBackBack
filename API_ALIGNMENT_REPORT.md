@@ -1,43 +1,43 @@
-# API Alignment Report: Auth API
+# API 연동 현황 리포트: Auth API (Spec v1.2.0 기준)
 
-This report compares the Frontend Specification (`SENTINEL_PoC_API.yaml`) with the current Backend Implementation (`feat/align-auth-api` branch).
+이 리포트는 업데이트된 Frontend 명세서(`SENTINEL_PoC_API.yaml v1.2.0`)와 현재 Backend 구현(`feat/align-auth-api` 브랜치) 간의 일치 여부를 비교합니다.
 
-## **1. Comparison Chart**
+## **1. 비교 요약 (Comparison Chart)**
 
-| **Feature** | **Frontend Spec (SENTINEL_PoC_API.yaml)** | **Backend Implementation (Current)** | **Alignment Status** |
+| **기능 (Feature)** | **FE 명세 (v1.2.0)** | **BE 구현 (Current)** | **상태 (Status)** |
 | :--- | :--- | :--- | :--- |
-| **Login Endpoint** | `POST /auth/login` | `POST /auth/login` | ✅ **Aligned** |
-| **Login Request Body** | `{ "username": "...", "password": "..." }` | `{ "email": "...", "password": "...", "deviceId": "...", ... }` | ⚠️ **Mismatch** (`username` vs `email`) |
-| **Login Response Format** | Wrapped Object: `ApiResponseAuthLogin` <br> (`success`, `data`, `error`, `timestamp`) | Raw Object: `TokenResponse` | ❌ **Mismatch** (Missing Wrapper) |
-| **Login Response Data** | Fields: `accessToken`, `refreshToken`, `expiresIn`, **`user`** | Fields: `accessToken`, `expiresIn`, `passwordExpired` <br> (Hidden: `refreshToken`) | ❌ **Mismatch** (Missing `user` object) |
-| **User Info Object** | `{ "id": 1, "name": "...", "role": "USER" }` | **Missing** | ❌ **Mismatch** |
-| **Refresh Token Delivery** | JSON Body | **HttpOnly Cookie** (`refresh_token`) | ✅ **Intentional Deviation** (Security Best Practice) |
-| **Logout Endpoint** | `POST /auth/logout` | `POST /auth/logout` | ✅ **Aligned** (Implemented) |
+| **로그인 엔드포인트** | `POST /auth/login` | `POST /auth/login` | ✅ **일치** |
+| **로그인 요청 본문** | `{ "email": "...", "password": "..." }` | `{ "email": "...", "password": "...", ... }` | ✅ **일치** (Spec이 email로 변경됨) |
+| **로그인 응답 포맷** | Direct Object (`LoginResponse`) | Raw Object (`TokenResponse`) | ✅ **일치** (Wrapper 불필요) |
+| **로그인 응답 데이터** | `accessToken`, `expiresIn`, `tokenType`, **`user`** | `accessToken`, `expiresIn`, `tokenType` | ❌ **불일치** (`user` 객체 누락) |
+| **사용자 정보 객체** | `UserSummary` (`userId`, `email`, `name`, `role`) | **없음** | ❌ **불일치** |
+| **Refresh Token 전달** | (언급 없음 / Spec에서 제거됨) | **HttpOnly Cookie** (`refresh_token`) | ✅ **일치** (보안) |
+| **로그아웃** | `POST /auth/logout` (204 No Content) | `POST /auth/logout` (204 No Content) | ✅ **일치** |
 
-## **2. Detailed Discrepancies**
+## **2. 주요 변경 사항 (Delta Analysis)**
 
-### **A. Response Wrapper**
-*   **Spec**: Expects a standard envelope `ApiResponse<T>` for all successful responses.
-*   **Current**: Returns the DTO directly.
-*   **Action Required**: Modify `AuthController` to return `ApiResponse<TokenResponse>`.
+### **A. 요청 필드 (Request Field)**
+*   **이전 (v0.1.0)**: `username` 사용으로 인한 불일치 발생.
+*   **현재 (v1.2.0)**: Spec이 `email`로 변경되어 Backend 구현과 **자동 일치**됨. 별도 수정 불필요.
 
-### **B. User Identity in Response**
-*   **Spec**: Login response must include the logged-in user's `id`, `name`, and `role`.
-*   **Current**: Only token information is returned.
-*   **Action Required**:
-    1.  Create `UserRefDto`.
-    2.  Add `UserRefDto` field to `TokenResponse`.
-    3.  Populate this data in `AuthService`.
+### **B. 응답 구조 (Response Structure)**
+*   **이전 (v0.1.0)**: `ApiResponse` 래퍼 요구.
+*   **현재 (v1.2.0)**: 래퍼 없이 직접 객체 반환 (`LoginResponse`). Backend 구현과 **일치**함. `ApiResponse` 적용 작업 취소.
 
-### **C. Request Parameter Name**
-*   **Spec**: `username`
-*   **Current**: `email`
-*   **Note**: Existing frontend code (`auth-console.html`) uses `email`.
-*   **Recommendation**: Stick to `email` in Backend. The YAML spec should ideally be updated, or we can alias `username` to `email` if strict compliance is required.
+### **C. 사용자 정보 (User Summary)**
+*   **요구 사항**: 로그인 응답에 `user` 객체(`UserSummary`)가 포함되어야 함.
+    ```json
+    "user": {
+      "userId": "...",
+      "email": "...",
+      "name": "...",
+      "role": "..."
+    }
+    ```
+*   **조치 필요**: `TokenResponse`에 `UserSummaryDto` 필드를 추가하고 `AuthService`에서 채워주어야 함.
 
-## **3. Next Steps**
+## **3. 다음 작업 (Next Steps)**
 
-1.  [ ] Create `UserRefDto` class.
-2.  [ ] Refactor `TokenResponse` to include `UserRefDto`.
-3.  [ ] Refactor `AuthService.login` to populate user details.
-4.  [ ] Refactor `AuthController` to wrap responses in `ApiResponse`.
+1.  [ ] **[BE]** `UserSummaryDto` 클래스 생성 (`UserRefDto` 대체)
+2.  [ ] **[BE]** `TokenResponse`에 `UserSummaryDto` 필드 추가
+3.  [ ] **[BE]** `AuthService` 로그인 로직 수정 (User 정보 매핑)

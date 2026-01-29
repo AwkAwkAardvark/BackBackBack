@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.aivle.project.auth.dto.AuthLoginResponse;
 import com.aivle.project.auth.dto.LoginRequest;
 import com.aivle.project.auth.dto.PasswordChangeRequest;
 import com.aivle.project.auth.dto.SignupRequest;
@@ -130,10 +131,16 @@ class AuthIntegrationTest {
 			.andReturn();
 
 		// then: 토큰 응답이 반환된다
-		TokenResponse response = objectMapper.readValue(result.getResponse().getContentAsString(), TokenResponse.class);
+		AuthLoginResponse response = objectMapper.readValue(result.getResponse().getContentAsString(), AuthLoginResponse.class);
 		assertThat(response.accessToken()).isNotBlank();
 		assertThat(response.refreshToken()).isNull(); // @JsonIgnore ensures this is null in JSON
 		assertThat(response.tokenType()).isEqualTo("Bearer");
+		
+		// then: 사용자 정보가 포함되어 있다
+		assertThat(response.user()).isNotNull();
+		assertThat(response.user().email()).isEqualTo("user@test.com");
+		assertThat(response.user().name()).isEqualTo("test-user");
+		assertThat(response.user().role()).isEqualTo(RoleName.ROLE_USER);
 
 		// then: 리프레시 토큰이 쿠키에 포함되어 있다
 		Cookie cookie = result.getResponse().getCookie("refresh_token");
@@ -375,7 +382,7 @@ class AuthIntegrationTest {
 			.andExpect(status().isOk())
 			.andReturn();
 		
-		TokenResponse response = objectMapper.readValue(loginResult.getResponse().getContentAsString(), TokenResponse.class);
+		AuthLoginResponse response = objectMapper.readValue(loginResult.getResponse().getContentAsString(), AuthLoginResponse.class);
 		String accessToken = response.accessToken();
 		Cookie refreshCookie = loginResult.getResponse().getCookie("refresh_token");
 
@@ -407,7 +414,7 @@ class AuthIntegrationTest {
 			.andExpect(status().isOk())
 			.andReturn();
 
-		TokenResponse response = objectMapper.readValue(result.getResponse().getContentAsString(), TokenResponse.class);
+		AuthLoginResponse response = objectMapper.readValue(result.getResponse().getContentAsString(), AuthLoginResponse.class);
 		return response.accessToken();
 	}
 
