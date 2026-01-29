@@ -34,17 +34,14 @@ public class SignupRequest {
 
 	@NotBlank
 	@Size(min = 2, max = 50)
-	@Schema(description = "이름", example = "홍길동")
-	private String name;
-
-	@Size(max = 20)
-	@Schema(description = "전화번호", example = "01012345678")
-	private String phone;
+	@Schema(description = "로그인 ID (헤더 표시 및 서비스용)", example = "user_id")
+	private String username;
 
 	@NotBlank(message = "보안 검증이 필요합니다")
 	@Schema(description = "Cloudflare Turnstile 토큰", example = "0.abc123...")
 	private String turnstileToken;
 
+	/*
 	@JsonIgnore
 	@AssertTrue(message = "비밀번호에 전화번호를 포함할 수 없습니다.")
 	public boolean isPasswordValid() {
@@ -52,14 +49,15 @@ public class SignupRequest {
 			return true; // @NotBlank 처리
 		}
 
-		// 전화번호 포함 여부 확인
-		if (phone != null && !phone.isBlank() && password.contains(phone)) {
-			return false;
-		}
+		// 전화번호 포함 여부 확인 (phone 필드 삭제로 인해 비활성화)
+		// if (phone != null && !phone.isBlank() && password.contains(phone)) {
+		// 	return false;
+		// }
 
 		// TODO: 생년월일 포함 여부 확인 (구현 예정)
 		// if (birthDate != null && password.contains(birthDate)) { return false; }
 
 		return true;
 	}
+	*/
 }

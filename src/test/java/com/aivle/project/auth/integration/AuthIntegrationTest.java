@@ -204,8 +204,7 @@ class AuthIntegrationTest {
 		SignupRequest request = new SignupRequest();
 		request.setEmail("newuser@test.com");
 		request.setPassword("ValidPass123!");
-		request.setName("테스트 사용자");
-		request.setPhone("01012345678");
+		request.setUsername("testuser_id");
 		request.setTurnstileToken("valid-turnstile-token");
 
 		// when: 회원가입 요청 수행
@@ -223,7 +222,7 @@ class AuthIntegrationTest {
 		UserEntity createdUser = userRepository.findByEmail("newuser@test.com").orElse(null);
 		assertThat(createdUser).isNotNull();
 		assertThat(createdUser.getEmail()).isEqualTo("newuser@test.com");
-		assertThat(createdUser.getName()).isEqualTo("테스트 사용자");
+		assertThat(createdUser.getName()).isEqualTo("testuser_id");
 	}
 
 	// Note: Turnstile 검증 실패 테스트는 TestSecurityConfig에서 항상 통과하도록 설정되어 있으므로
@@ -236,8 +235,7 @@ class AuthIntegrationTest {
 		SignupRequest request = new SignupRequest();
 		request.setEmail("notoken@test.com");
 		request.setPassword("ValidPass123!");
-		request.setName("토큰 없음");
-		request.setPhone("01012345678");
+		request.setUsername("notoken_id");
 		// turnstileToken은 null로 유지
 
 		// when: 회원가입 요청 수행
