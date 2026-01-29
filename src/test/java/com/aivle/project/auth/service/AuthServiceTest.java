@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.aivle.project.auth.dto.AuthLoginResponse;
 import com.aivle.project.auth.dto.LoginRequest;
 import com.aivle.project.auth.dto.PasswordChangeRequest;
 import com.aivle.project.auth.dto.TokenRefreshRequest;
@@ -21,6 +22,8 @@ import com.aivle.project.user.entity.UserEntity;
 import com.aivle.project.user.security.CustomUserDetails;
 import com.aivle.project.user.security.CustomUserDetailsService;
 import com.aivle.project.user.service.UserDomainService;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +34,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,7 +62,7 @@ class AuthServiceTest {
 	private PasswordEncoder passwordEncoder;
 
 	@Test
-	@DisplayName("로그인 성공 시 액세스/리프레시 토큰을 반환한다")
+	@DisplayName("로그인 성공 시 액세스/리프레시 토큰과 사용자 정보를 반환한다")
 	void login_shouldReturnTokenResponse() {
 		// given: 로그인 요청과 인증 성공 상태를 준비
 		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder);
@@ -68,6 +72,10 @@ class AuthServiceTest {
 		request.setPassword("password");
 
 		CustomUserDetails userDetails = mock(CustomUserDetails.class);
+		when(userDetails.getUsername()).thenReturn("user@example.com");
+		when(userDetails.getName()).thenReturn("홍길동");
+		when(userDetails.getUuid()).thenReturn(UUID.randomUUID());
+		when(userDetails.getAuthorities()).thenReturn((List) List.of(new SimpleGrantedAuthority("ROLE_USER")));
 
 		Authentication authentication = mock(Authentication.class);
 		when(authentication.getPrincipal()).thenReturn(userDetails);
@@ -79,12 +87,15 @@ class AuthServiceTest {
 		when(jwtTokenService.getRefreshTokenExpirationSeconds()).thenReturn(604800L);
 
 		// when: 로그인을 수행
-		TokenResponse response = authService.login(request, "127.0.0.1");
+		AuthLoginResponse response = authService.login(request, "127.0.0.1");
 
 		// then: 토큰 응답과 Refresh 저장 동작을 검증
 		assertThat(response.accessToken()).isEqualTo("access");
 		assertThat(response.refreshToken()).isEqualTo("refresh");
 		assertThat(response.passwordExpired()).isFalse();
+		assertThat(response.user().name()).isEqualTo("홍길동");
+		assertThat(response.user().email()).isEqualTo("user@example.com");
+		
 		verify(refreshTokenService).storeToken(eq(userDetails), eq("refresh"), eq("default"), eq(request.getDeviceInfo()), eq("127.0.0.1"));
 	}
 

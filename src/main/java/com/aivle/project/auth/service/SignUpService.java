@@ -54,8 +54,8 @@ public class SignUpService {
 		UserEntity user = userDomainService.register(
 			request.getEmail(),
 			encodedPassword,
-			request.getName(),
-			request.getPhone(),
+			request.getUsername(),
+			null,
 			RoleName.ROLE_USER
 		);
 

@@ -89,12 +89,13 @@ class SignupRequestTest {
 		assertThat(violations).isNotEmpty();
 	}
 
+	/*
 	@Test
 	@DisplayName("비밀번호에 전화번호 포함 시 실패 (@AssertTrue)")
 	void password_contains_phone_fail() {
 		// given
 		SignupRequest request = createValidRequest();
-		request.setPhone("01012345678");
+		// request.setPhone("01012345678");
 		request.setPassword("pass01012345678!"); // 전화번호 포함
 
 		// when
@@ -103,12 +104,12 @@ class SignupRequestTest {
 		// then
 		assertThat(violations).anyMatch(v -> v.getMessage().contains("전화번호"));
 	}
+	*/
 
 	private SignupRequest createValidRequest() {
 		SignupRequest request = new SignupRequest();
 		request.setEmail("test@example.com");
-		request.setName("테스터");
-		request.setPhone("01011112222");
+		request.setUsername("test_user");
 		request.setTurnstileToken("test-turnstile-token");
 		return request;
 	}
