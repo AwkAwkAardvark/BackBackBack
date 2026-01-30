@@ -36,6 +36,7 @@ public class FileService {
 	private final FilesRepository filesRepository;
 	private final PostFilesRepository postFilesRepository;
 	private final PostsRepository postsRepository;
+	private final com.aivle.project.file.mapper.FileMapper fileMapper;
 
 	public List<FileResponse> upload(Long postId, UserEntity user, List<MultipartFile> files) {
 		PostsEntity post = findPost(postId);
@@ -57,7 +58,7 @@ public class FileService {
 			);
 			FilesEntity saved = filesRepository.save(entity);
 			postFilesRepository.save(PostFilesEntity.create(post, saved));
-			responses.add(FileResponse.from(post.getId(), saved));
+			responses.add(fileMapper.toResponse(post.getId(), saved));
 		}
 
 		return responses;
@@ -69,7 +70,7 @@ public class FileService {
 		Long userId = requireUserId(user);
 		validateOwner(post, userId);
 		return postFilesRepository.findAllActiveByPostIdOrderByCreatedAtAsc(postId).stream()
-			.map(mapping -> FileResponse.from(postId, mapping.getFile()))
+			.map(mapping -> fileMapper.toResponse(postId, mapping.getFile()))
 			.toList();
 	}
 

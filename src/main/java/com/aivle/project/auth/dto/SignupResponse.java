@@ -22,7 +22,4 @@ public record SignupResponse(
 	@Schema(description = "역할", example = "USER")
 	RoleName role
 ) {
-	public static SignupResponse of(UserEntity user, RoleName role) {
-		return new SignupResponse(user.getId(), user.getUuid(), user.getEmail(), user.getStatus(), role);
-	}
 }

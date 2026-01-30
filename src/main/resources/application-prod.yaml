@@ -16,7 +16,18 @@ app:
       upload-dir: ${UPLOAD_DIR:/var/app/uploads}
 
 spring:
+  config:
+    import: optional:classpath:application-email.yml
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   servlet:
     multipart:
       max-file-size: ${FILE_MAX_SIZE:10MB}
       max-request-size: ${REQUEST_MAX_SIZE:20MB}
+
+turnstile:
+  secret-key: ${TURNSTILE_SECRET_KEY}
+  site-key: ${TURNSTILE_SITE_KEY}

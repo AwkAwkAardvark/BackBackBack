@@ -27,4 +27,10 @@ public class DevConsoleController {
 	public String fileConsole() {
 		return "file-console";
 	}
+
+	@GetMapping("/report-predict-console")
+	@Operation(hidden = true)
+	public String reportPredictConsole() {
+		return "report-predict-console";
+	}
 }

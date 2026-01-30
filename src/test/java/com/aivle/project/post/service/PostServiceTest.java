@@ -50,6 +50,9 @@ class PostServiceTest {
 	@Mock
 	private CategoriesRepository categoriesRepository;
 
+	@Mock
+	private com.aivle.project.post.mapper.PostMapper postMapper;
+
 	@Test
 	@DisplayName("페이징 요청으로 게시글 목록을 조회한다")
 	void list_shouldReturnPageResponse() {
@@ -67,6 +70,9 @@ class PostServiceTest {
 
 		given(postsRepository.findAllByDeletedAtIsNullOrderByCreatedAtDesc(any(Pageable.class)))
 			.willReturn(page);
+		
+		given(postMapper.toResponse(first)).willReturn(new PostResponse(100L, 1L, 10L, "title-1", "content-1", 0, false, PostStatus.PUBLISHED, null, null));
+		given(postMapper.toResponse(second)).willReturn(new PostResponse(101L, 1L, 10L, "title-2", "content-2", 0, false, PostStatus.PUBLISHED, null, null));
 
 		// when
 		PageResponse<PostResponse> response = postService.list(pageRequest);
@@ -97,6 +103,10 @@ class PostServiceTest {
 			return saved;
 		});
 		given(postViewCountsRepository.save(any(PostViewCountsEntity.class))).willAnswer(invocation -> invocation.getArgument(0));
+		given(postMapper.toResponse(any(PostsEntity.class))).willAnswer(invocation -> {
+			PostsEntity post = invocation.getArgument(0);
+			return new PostResponse(post.getId(), post.getUser().getId(), post.getCategory().getId(), post.getTitle(), post.getContent(), 0, post.isPinned(), post.getStatus(), null, null);
+		});
 
 		// when
 		PostResponse response = postService.create(user, request);
@@ -125,6 +135,10 @@ class PostServiceTest {
 
 		given(postsRepository.findByIdAndDeletedAtIsNull(100L)).willReturn(Optional.of(post));
 		given(categoriesRepository.findByIdAndDeletedAtIsNull(20L)).willReturn(Optional.of(nextCategory));
+		given(postMapper.toResponse(any(PostsEntity.class))).willAnswer(invocation -> {
+			PostsEntity p = invocation.getArgument(0);
+			return new PostResponse(p.getId(), p.getUser().getId(), p.getCategory().getId(), p.getTitle(), p.getContent(), 0, p.isPinned(), p.getStatus(), null, null);
+		});
 
 		// when
 		PostResponse response = postService.update(user, 100L, request);

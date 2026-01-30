@@ -85,6 +85,7 @@ public class SecurityConfig {
 					"/api/auth/resend-verification",
 					"/dev/console",
 					"/dev/file-console",
+					"/dev/report-predict-console",
 					"/error"
 				).permitAll()
 				.requestMatchers("/dev/categories").permitAll()

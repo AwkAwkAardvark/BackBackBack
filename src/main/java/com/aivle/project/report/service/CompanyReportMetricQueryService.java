@@ -1,11 +1,15 @@
 package com.aivle.project.report.service;
 
 import com.aivle.project.quarter.support.QuarterCalculator;
+import com.aivle.project.metric.entity.MetricValueType;
+import com.aivle.project.report.dto.ReportLatestPredictResponse;
 import com.aivle.project.report.dto.ReportMetricGroupedResponse;
 import com.aivle.project.report.dto.ReportMetricItemDto;
 import com.aivle.project.report.dto.ReportMetricQuarterGroupDto;
 import com.aivle.project.report.dto.ReportMetricRowDto;
 import com.aivle.project.report.dto.ReportMetricRowProjection;
+import com.aivle.project.report.dto.ReportPredictMetricItemDto;
+import com.aivle.project.report.dto.ReportPredictMetricRowProjection;
 import com.aivle.project.report.repository.CompanyReportMetricValuesRepository;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -24,6 +28,7 @@ import org.springframework.stereotype.Service;
 public class CompanyReportMetricQueryService {
 
 	private final CompanyReportMetricValuesRepository companyReportMetricValuesRepository;
+	private final com.aivle.project.report.mapper.ReportMapper reportMapper;
 
 	public List<ReportMetricRowDto> fetchLatestMetrics(String stockCode, int fromQuarterKey, int toQuarterKey) {
 		String normalizedStockCode = normalizeStockCode(stockCode);
@@ -46,7 +51,7 @@ public class CompanyReportMetricQueryService {
 			rows.size()
 		);
 		return rows.stream()
-			.map(ReportMetricRowDto::from)
+			.map(reportMapper::toRowDto)
 			.toList();
 	}
 
@@ -60,12 +65,7 @@ public class CompanyReportMetricQueryService {
 		Map<Integer, ReportMetricQuarterGroupDto> grouped = new LinkedHashMap<>();
 		Map<Integer, List<ReportMetricItemDto>> items = new LinkedHashMap<>();
 		for (ReportMetricRowDto row : rows) {
-			items.computeIfAbsent(row.quarterKey(), key -> new ArrayList<>()).add(new ReportMetricItemDto(
-				row.metricCode(),
-				row.metricNameKo(),
-				row.metricValue(),
-				row.valueType()
-			));
+			items.computeIfAbsent(row.quarterKey(), key -> new ArrayList<>()).add(reportMapper.toItemDto(row));
 			grouped.putIfAbsent(row.quarterKey(), new ReportMetricQuarterGroupDto(
 				row.quarterKey(),
 				row.versionNo(),
@@ -75,12 +75,45 @@ public class CompanyReportMetricQueryService {
 		}
 
 		ReportMetricRowDto first = rows.get(0);
-		return new ReportMetricGroupedResponse(
+		return reportMapper.toGroupedResponse(
 			first.corpName(),
 			first.stockCode(),
 			fromQuarterKey,
 			toQuarterKey,
 			new ArrayList<>(grouped.values())
+		);
+	}
+
+	public ReportLatestPredictResponse fetchLatestPredictMetrics(String stockCode, int quarterKey) {
+		String normalizedStockCode = normalizeStockCode(stockCode);
+		if (normalizedStockCode.isBlank()) {
+			throw new IllegalArgumentException("stockCode가 비어 있습니다.");
+		}
+		validateQuarterKey(quarterKey);
+
+		List<ReportPredictMetricRowProjection> rows = companyReportMetricValuesRepository
+			.findLatestMetricsByStockCodeAndQuarterKeyAndType(normalizedStockCode, quarterKey, MetricValueType.PREDICTED);
+		if (rows.isEmpty()) {
+			return ReportLatestPredictResponse.empty(normalizedStockCode, quarterKey);
+		}
+
+		ReportPredictMetricRowProjection first = rows.get(0);
+		String downloadUrl = first.getPdfFileId() != null ? "/admin/reports/files/" + first.getPdfFileId() : null;
+		List<ReportPredictMetricItemDto> metrics = rows.stream()
+			.map(reportMapper::toPredictItemDto)
+			.toList();
+
+		return reportMapper.toLatestPredictResponse(
+			first.getCorpName(),
+			first.getStockCode(),
+			quarterKey,
+			first.getVersionNo(),
+			first.getGeneratedAt(),
+			first.getPdfFileId(),
+			first.getPdfFileName(),
+			first.getPdfContentType(),
+			downloadUrl,
+			metrics
 		);
 	}
 

@@ -31,18 +31,4 @@ public record PostResponse(
 	@Schema(description = "수정 일시", example = "2026-01-25T12:40:00")
 	LocalDateTime updatedAt
 ) {
-	public static PostResponse from(PostsEntity post) {
-		return new PostResponse(
-			post.getId(),
-			post.getUser().getId(),
-			post.getCategory().getId(),
-			post.getTitle(),
-			post.getContent(),
-			post.getViewCount(),
-			post.isPinned(),
-			post.getStatus(),
-			post.getCreatedAt(),
-			post.getUpdatedAt()
-		);
-	}
 }

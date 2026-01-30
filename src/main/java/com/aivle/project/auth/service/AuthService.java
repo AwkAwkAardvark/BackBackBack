@@ -42,6 +42,7 @@ public class AuthService {
 	private final CustomUserDetailsService userDetailsService;
 	private final UserDomainService userDomainService;
 	private final PasswordEncoder passwordEncoder;
+	private final com.aivle.project.user.mapper.UserMapper userMapper;
 
 	public AuthLoginResponse login(LoginRequest request, String ipAddress) {
 		Authentication authentication = authenticate(request.getEmail(), request.getPassword());
@@ -69,12 +70,7 @@ public class AuthService {
 			.findFirst()
 			.orElse(RoleName.ROLE_USER);
 
-		UserSummaryDto userSummary = new UserSummaryDto(
-			userDetails.getUuid().toString(),
-			userDetails.getUsername(),
-			userDetails.getName(),
-			role
-		);
+		UserSummaryDto userSummary = userMapper.toSummaryDto(userDetails, role);
 
 		return AuthLoginResponse.of(tokenResponse, userSummary);
 	}

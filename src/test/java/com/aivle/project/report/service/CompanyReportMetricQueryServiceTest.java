@@ -54,6 +54,9 @@ class CompanyReportMetricQueryServiceTest {
 	@Autowired
 	private MetricsRepository metricsRepository;
 
+	@org.springframework.boot.test.mock.mockito.MockBean
+	private com.aivle.project.report.mapper.ReportMapper reportMapper;
+
 	@Test
 	@DisplayName("기업코드를 정규화하고 최신 버전 지표를 반환한다")
 	void fetchLatestMetrics() {
@@ -105,6 +108,14 @@ class CompanyReportMetricQueryServiceTest {
 			new BigDecimal("3.33"),
 			MetricValueType.ACTUAL
 		));
+
+		org.mockito.BDDMockito.given(reportMapper.toRowDto(org.mockito.ArgumentMatchers.any())).willAnswer(invocation -> {
+			com.aivle.project.report.dto.ReportMetricRowProjection p = invocation.getArgument(0);
+			return new ReportMetricRowDto(
+				p.getCorpName(), p.getStockCode(), p.getMetricCode(), p.getMetricNameKo(),
+				p.getMetricValue(), p.getValueType(), p.getQuarterKey(), p.getVersionNo(), p.getGeneratedAt()
+			);
+		});
 
 		// when
 		List<ReportMetricRowDto> rows = companyReportMetricQueryService.fetchLatestMetrics("20", 20244, 20253);
@@ -172,6 +183,35 @@ class CompanyReportMetricQueryServiceTest {
 			q20253,
 			new BigDecimal("3.33"),
 			MetricValueType.ACTUAL
+		));
+
+		org.mockito.BDDMockito.given(reportMapper.toRowDto(org.mockito.ArgumentMatchers.any())).willAnswer(invocation -> {
+			com.aivle.project.report.dto.ReportMetricRowProjection p = invocation.getArgument(0);
+			return new ReportMetricRowDto(
+				p.getCorpName(), p.getStockCode(), p.getMetricCode(), p.getMetricNameKo(),
+				p.getMetricValue(), p.getValueType(), p.getQuarterKey(), p.getVersionNo(), p.getGeneratedAt()
+			);
+		});
+		org.mockito.BDDMockito.given(reportMapper.toItemDto(org.mockito.ArgumentMatchers.any())).willAnswer(invocation -> {
+			ReportMetricRowDto row = invocation.getArgument(0);
+			return new com.aivle.project.report.dto.ReportMetricItemDto(
+				row.metricCode(), row.metricNameKo(), row.metricValue(), row.valueType()
+			);
+		});
+		org.mockito.BDDMockito.given(
+			reportMapper.toGroupedResponse(
+				org.mockito.ArgumentMatchers.anyString(),
+				org.mockito.ArgumentMatchers.anyString(),
+				org.mockito.ArgumentMatchers.anyInt(),
+				org.mockito.ArgumentMatchers.anyInt(),
+				org.mockito.ArgumentMatchers.anyList()
+			)
+		).willAnswer(invocation -> new ReportMetricGroupedResponse(
+			invocation.getArgument(0),
+			invocation.getArgument(1),
+			invocation.getArgument(2),
+			invocation.getArgument(3),
+			invocation.getArgument(4)
 		));
 
 		// when

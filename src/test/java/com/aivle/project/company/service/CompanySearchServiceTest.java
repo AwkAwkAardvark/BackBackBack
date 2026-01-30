@@ -25,11 +25,14 @@ class CompanySearchServiceTest {
 	@Autowired
 	private CompaniesRepository companiesRepository;
 
+	@org.springframework.boot.test.mock.mockito.MockBean
+	private com.aivle.project.company.mapper.CompanyMapper companyMapper;
+
 	@Test
 	@DisplayName("회사명 또는 영문명으로 기업을 검색한다")
 	void searchCompanies() {
 		// given
-		companiesRepository.save(CompaniesEntity.create(
+		CompaniesEntity company = companiesRepository.save(CompaniesEntity.create(
 			"00000001",
 			"테스트기업",
 			"TEST_CO",
@@ -43,6 +46,11 @@ class CompanySearchServiceTest {
 			"000030",
 			LocalDate.of(2025, 1, 1)
 		));
+
+		org.mockito.BDDMockito.given(companyMapper.toSearchResponse(org.mockito.ArgumentMatchers.any())).willAnswer(invocation -> {
+			CompaniesEntity c = invocation.getArgument(0);
+			return new CompanySearchResponse(c.getId(), c.getCorpName(), c.getCorpEngName(), c.getStockCode());
+		});
 
 		// when
 		List<CompanySearchResponse> result = companySearchService.search("test");

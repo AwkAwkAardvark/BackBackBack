@@ -31,6 +31,7 @@ public class PostService {
 	private final PostsRepository postsRepository;
 	private final PostViewCountsRepository postViewCountsRepository;
 	private final CategoriesRepository categoriesRepository;
+	private final com.aivle.project.post.mapper.PostMapper postMapper;
 
 	@Transactional(readOnly = true)
 	public PageResponse<PostResponse> list(PageRequest pageRequest) {
@@ -38,14 +39,14 @@ public class PostService {
 		Page<PostsEntity> page = postsRepository.findAllByDeletedAtIsNullOrderByCreatedAtDesc(
 			pageRequest.toPageable()
 		);
-		return PageResponse.of(page.map(PostResponse::from));
+		return PageResponse.of(page.map(postMapper::toResponse));
 	}
 
 	@Transactional(readOnly = true)
 	public PostResponse get(Long postId) {
 		// 특정 게시글의 상세 정보를 조회합니다.
 		PostsEntity post = findPost(postId);
-		return PostResponse.from(post);
+		return postMapper.toResponse(post);
 	}
 
 	public PostResponse create(UserEntity user, PostCreateRequest request) {
@@ -64,7 +65,7 @@ public class PostService {
 
 		PostsEntity saved = postsRepository.save(post);
 		postViewCountsRepository.save(PostViewCountsEntity.create(saved));
-		return PostResponse.from(saved);
+		return postMapper.toResponse(saved);
 	}
 
 	public PostResponse update(UserEntity user, Long postId, PostUpdateRequest request) {
@@ -84,7 +85,7 @@ public class PostService {
 		validatePatch(nextTitle, nextContent, request);
 
 		post.update(nextTitle, nextContent, nextCategory);
-		return PostResponse.from(post);
+		return postMapper.toResponse(post);
 	}
 
 	public void delete(UserEntity user, Long postId) {

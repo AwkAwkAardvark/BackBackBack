@@ -8,6 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.aivle.project.company.entity.CompaniesEntity;
 import com.aivle.project.company.repository.CompaniesRepository;
 import com.aivle.project.common.config.TestSecurityConfig;
+import com.aivle.project.file.entity.FileUsageType;
+import com.aivle.project.file.entity.FilesEntity;
+import com.aivle.project.file.repository.FilesRepository;
 import com.aivle.project.metric.entity.MetricValueType;
 import com.aivle.project.metric.entity.MetricsEntity;
 import com.aivle.project.metric.repository.MetricsRepository;
@@ -60,6 +63,9 @@ class ReportMetricQueryControllerTest {
 
 	@Autowired
 	private CompanyReportMetricValuesRepository companyReportMetricValuesRepository;
+
+	@Autowired
+	private FilesRepository filesRepository;
 
 	@Test
 	@DisplayName("관리자 API로 분기별 그룹 지표를 조회한다")
@@ -119,5 +125,61 @@ class ReportMetricQueryControllerTest {
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data.stockCode").value("000020"))
 			.andExpect(jsonPath("$.data.quarters.length()").value(2));
+	}
+
+	@Test
+	@DisplayName("관리자 API로 최신 예측 지표와 PDF 정보를 조회한다")
+	void fetchLatestPredictMetrics() throws Exception {
+		// given
+		CompaniesEntity company = companiesRepository.save(CompaniesEntity.create(
+			"00000002",
+			"예측기업",
+			"PREDICT_CO",
+			"000020",
+			LocalDate.of(2025, 1, 1)
+		));
+		QuartersEntity q20253 = quartersRepository.save(QuartersEntity.create(
+			2025,
+			3,
+			20253,
+			LocalDate.of(2025, 7, 1),
+			LocalDate.of(2025, 9, 30)
+		));
+		MetricsEntity metric = metricsRepository.findByMetricCode("ROA").orElseThrow();
+
+		CompanyReportsEntity report = companyReportsRepository.save(
+			CompanyReportsEntity.create(company, q20253, null)
+		);
+		CompanyReportVersionsEntity latestVersion = companyReportVersionsRepository.save(
+			CompanyReportVersionsEntity.create(report, 1, LocalDateTime.now(), false, null)
+		);
+		FilesEntity pdf = filesRepository.save(FilesEntity.create(
+			FileUsageType.REPORT_PDF,
+			"http://example.com/report.pdf",
+			"report.pdf",
+			1200L,
+			"application/pdf"
+		));
+		latestVersion.publishWithPdf(pdf);
+		companyReportVersionsRepository.save(latestVersion);
+		companyReportMetricValuesRepository.save(CompanyReportMetricValuesEntity.create(
+			latestVersion,
+			metric,
+			q20253,
+			new BigDecimal("9.99"),
+			MetricValueType.PREDICTED
+		));
+
+		// when & then
+		mockMvc.perform(get("/admin/reports/metrics/predict-latest")
+				.param("stockCode", "000020")
+				.param("quarterKey", "20253")
+				.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.stockCode").value("000020"))
+			.andExpect(jsonPath("$.data.versionNo").value(1))
+			.andExpect(jsonPath("$.data.pdfFileId").value(pdf.getId()))
+			.andExpect(jsonPath("$.data.metrics.length()").value(1));
 	}
 }

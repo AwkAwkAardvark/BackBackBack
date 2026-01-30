@@ -18,18 +18,4 @@ public record ReportMetricRowDto(
 	int versionNo,
 	LocalDateTime generatedAt
 ) {
-
-	public static ReportMetricRowDto from(ReportMetricRowProjection projection) {
-		return new ReportMetricRowDto(
-			projection.getCorpName(),
-			projection.getStockCode(),
-			projection.getMetricCode(),
-			projection.getMetricNameKo(),
-			projection.getMetricValue(),
-			projection.getValueType(),
-			projection.getQuarterKey(),
-			projection.getVersionNo(),
-			projection.getGeneratedAt()
-		);
-	}
 }

@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ko">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Report Predict Console</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--ink: #121417;
+			--ink-soft: #2b2f3a;
+			--muted: #6b7280;
+			--accent: #ff6b3d;
+			--accent-2: #3d7bff;
+			--paper: #f6f1ea;
+			--card: #ffffff;
+			--line: #e6dfd5;
+			--shadow: 0 20px 50px rgba(18, 20, 23, 0.14);
+			--radius: 18px;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			font-family: "Space Grotesk", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+			color: var(--ink);
+			background: radial-gradient(circle at 20% 20%, #fff1df 0%, transparent 55%),
+				radial-gradient(circle at 80% 0%, #e7efff 0%, transparent 52%),
+				linear-gradient(180deg, #f8f3ea 0%, #efe8dd 100%);
+			min-height: 100vh;
+		}
+
+		.shell {
+			max-width: 1080px;
+			margin: 0 auto;
+			padding: 36px 24px 60px;
+			display: grid;
+			gap: 20px;
+		}
+
+		.header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 12px;
+		}
+
+		.title {
+			font-family: "Newsreader", serif;
+			font-size: 32px;
+			margin: 0;
+		}
+
+		.link-chip {
+			text-decoration: none;
+			color: var(--ink-soft);
+			background: #fbfaf8;
+			border: 1px solid var(--line);
+			padding: 8px 12px;
+			border-radius: 999px;
+			font-size: 12px;
+			font-weight: 600;
+		}
+
+		.card {
+			background: var(--card);
+			border-radius: var(--radius);
+			padding: 20px;
+			box-shadow: var(--shadow);
+			border: 1px solid var(--line);
+		}
+
+		.row {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+			gap: 12px;
+		}
+
+		label {
+			display: block;
+			font-size: 12px;
+			font-weight: 600;
+			margin-bottom: 6px;
+			color: var(--ink-soft);
+		}
+
+		input {
+			width: 100%;
+			padding: 10px 12px;
+			border-radius: 12px;
+			border: 1px solid var(--line);
+			font-size: 14px;
+		}
+
+		button {
+			border: none;
+			padding: 12px 16px;
+			border-radius: 999px;
+			font-family: inherit;
+			font-weight: 600;
+			cursor: pointer;
+			background: var(--accent-2);
+			color: #fff;
+		}
+
+		.actions {
+			margin-top: 14px;
+		}
+
+		.kv {
+			display: grid;
+			gap: 6px;
+			font-size: 14px;
+		}
+
+		.list {
+			margin-top: 12px;
+			display: grid;
+			gap: 8px;
+		}
+
+		.list-item {
+			padding: 10px 12px;
+			border-radius: 12px;
+			border: 1px solid var(--line);
+			background: #fff;
+			font-size: 13px;
+			display: flex;
+			justify-content: space-between;
+			gap: 12px;
+		}
+
+		.empty {
+			color: var(--muted);
+			font-size: 13px;
+			text-align: center;
+		}
+	</style>
+</head>
+<body>
+	<div class="shell">
+		<div class="header">
+			<h1 class="title">예측 보고서 조회</h1>
+			<div>
+				<a class="link-chip" href="/dev/console">API Console</a>
+				<a class="link-chip" href="/auth/console">Auth Console</a>
+			</div>
+		</div>
+
+		<div class="card">
+			<h2>최신 예측 보고서 조회</h2>
+			<div class="row">
+				<div>
+					<label for="predict-stock-code">stockCode</label>
+					<input id="predict-stock-code" type="text" placeholder="000020">
+				</div>
+				<div>
+					<label for="predict-quarter-key">quarterKey</label>
+					<input id="predict-quarter-key" type="number" placeholder="20253">
+				</div>
+			</div>
+			<div class="actions">
+				<button type="button" id="predict-fetch">조회</button>
+			</div>
+		</div>
+
+		<div class="card">
+			<h2>PDF 정보</h2>
+			<div id="pdf-info" class="kv">
+				<div class="empty">조회 결과가 없습니다.</div>
+			</div>
+		</div>
+
+		<div class="card">
+			<h2>PREDICT 지표 목록</h2>
+			<div id="predict-list" class="list"></div>
+		</div>
+	</div>
+
+	<script>
+		const storageKey = "auth-console.tokens";
+		const pdfInfo = document.getElementById("pdf-info");
+		const list = document.getElementById("predict-list");
+
+		const loadAccessToken = () => {
+			try {
+				const raw = localStorage.getItem(storageKey);
+				if (!raw) return "";
+				const data = JSON.parse(raw);
+				return data.accessToken || "";
+			} catch (e) {
+				return "";
+			}
+		};
+
+		const apiFetch = async (url) => {
+			const token = loadAccessToken();
+			const headers = token ? { Authorization: "Bearer " + token } : {};
+			return fetch(url, { headers });
+		};
+
+		const renderPdfInfo = (data) => {
+			pdfInfo.innerHTML = "";
+			if (!data || !data.pdfFileId) {
+				pdfInfo.innerHTML = "<div class=\"empty\">PDF 정보가 없습니다.</div>";
+				return;
+			}
+			const link = data.pdfDownloadUrl
+				? `<a href=\"${data.pdfDownloadUrl}\" target=\"_blank\" rel=\"noopener\">다운로드</a>`
+				: "-";
+			pdfInfo.innerHTML = `
+				<div><strong>버전</strong> ${data.versionNo ?? "-"}</div>
+				<div><strong>생성 시각</strong> ${data.generatedAt ?? "-"}</div>
+				<div><strong>파일명</strong> ${data.pdfFileName ?? "-"}</div>
+				<div><strong>파일 ID</strong> ${data.pdfFileId ?? "-"}</div>
+				<div><strong>다운로드</strong> ${link}</div>
+			`;
+		};
+
+		const renderMetrics = (items) => {
+			list.innerHTML = "";
+			if (!items || items.length === 0) {
+				list.innerHTML = "<div class=\"empty\">PREDICT 데이터가 없습니다.</div>";
+				return;
+			}
+			items.forEach(item => {
+				const row = document.createElement("div");
+				row.className = "list-item";
+				row.innerHTML = `
+					<div><strong>${item.metricCode}</strong> ${item.metricNameKo}</div>
+					<div>${item.metricValue ?? "-"}</div>
+				`;
+				list.appendChild(row);
+			});
+		};
+
+		document.getElementById("predict-fetch")?.addEventListener("click", async () => {
+			const stockCode = document.getElementById("predict-stock-code").value.trim();
+			const quarterKey = document.getElementById("predict-quarter-key").value.trim();
+			if (!stockCode || !quarterKey) {
+				renderPdfInfo(null);
+				renderMetrics([]);
+				return;
+			}
+			const url = `/admin/reports/metrics/predict-latest?stockCode=${encodeURIComponent(stockCode)}&quarterKey=${quarterKey}`;
+			try {
+				const response = await apiFetch(url);
+				const payload = await response.json();
+				if (!response.ok || !payload.success) {
+					renderPdfInfo(null);
+					renderMetrics([]);
+					const status = payload?.error?.code ? `${payload.error.code}` : `HTTP ${response.status}`;
+					pdfInfo.innerHTML = `<div class="empty">조회 실패: ${status}</div>`;
+					return;
+				}
+				renderPdfInfo(payload.data);
+				renderMetrics(payload.data.metrics || []);
+			} catch (e) {
+				renderPdfInfo(null);
+				renderMetrics([]);
+			}
+		});
+	</script>
+</body>
+</html>

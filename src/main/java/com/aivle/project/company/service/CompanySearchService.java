@@ -19,6 +19,7 @@ public class CompanySearchService {
 	private static final int MIN_KEYWORD_LENGTH = 2;
 
 	private final CompaniesRepository companiesRepository;
+	private final com.aivle.project.company.mapper.CompanyMapper companyMapper;
 
 	public List<CompanySearchResponse> search(String keyword) {
 		String normalized = normalizeKeyword(keyword);
@@ -33,12 +34,7 @@ public class CompanySearchService {
 			);
 		log.info("기업 검색 완료: keyword={}, count={}", normalized, companies.size());
 		return companies.stream()
-			.map(company -> new CompanySearchResponse(
-				company.getId(),
-				company.getCorpName(),
-				company.getCorpEngName(),
-				company.getStockCode()
-			))
+			.map(companyMapper::toSearchResponse)
 			.toList();
 	}
 

@@ -14,8 +14,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 
+@ActiveProfiles("test")
 @DataJpaTest
 class PostsRepositoryTest {
 
@@ -50,17 +52,17 @@ class PostsRepositoryTest {
 		entityManager.clear();
 
 		// when
-		// clear 후에는 엔티티를 다시 찾아와야 함
-		PostsEntity savedSecond = entityManager.find(PostsEntity.class, second.getId());
-		savedSecond.markDeleted();
+		PostsEntity target = entityManager.find(PostsEntity.class, second.getId());
+		target.markDeleted();
 		entityManager.flush();
+		entityManager.clear();
 
 		var results = postsRepository.findAllByDeletedAtIsNullOrderByCreatedAtDesc();
 
 		// then
-		assertThat(results).hasSize(2);
-		assertThat(results.get(0).getTitle()).isEqualTo("third");
-		assertThat(results.get(1).getTitle()).isEqualTo("first");
+		assertThat(results)
+			.extracting(PostsEntity::getTitle)
+			.containsExactly("third", "first");
 	}
 
 	private void updateCreatedAt(Long id, LocalDateTime createdAt) {

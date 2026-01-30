@@ -37,6 +37,9 @@ class CommentsServiceTest {
 	@Mock
 	private PostsRepository postsRepository;
 
+	@Mock
+	private com.aivle.project.comment.mapper.CommentMapper commentMapper;
+
 	@Test
 	@DisplayName("댓글 생성 성공 - 최상위 댓글")
 	void create_topLevel_success() {
@@ -60,6 +63,11 @@ class CommentsServiceTest {
 			CommentsEntity saved = invocation.getArgument(0);
 			ReflectionTestUtils.setField(saved, "id", 100L);
 			return saved;
+		});
+
+		given(commentMapper.toResponse(any(CommentsEntity.class))).willAnswer(invocation -> {
+			CommentsEntity c = invocation.getArgument(0);
+			return new CommentResponse(c.getId(), userId, postId, null, c.getContent(), c.getDepth(), c.getSequence(), null, null);
 		});
 
 		// when
@@ -104,6 +112,11 @@ class CommentsServiceTest {
 			CommentsEntity saved = invocation.getArgument(0);
 			ReflectionTestUtils.setField(saved, "id", 101L);
 			return saved;
+		});
+
+		given(commentMapper.toResponse(any(CommentsEntity.class))).willAnswer(invocation -> {
+			CommentsEntity c = invocation.getArgument(0);
+			return new CommentResponse(c.getId(), userId, postId, parentId, c.getContent(), c.getDepth(), c.getSequence(), null, null);
 		});
 
 		// when
@@ -151,6 +164,10 @@ class CommentsServiceTest {
 		ReflectionTestUtils.setField(realComment, "id", commentId);
 
 		given(commentsRepository.findById(commentId)).willReturn(Optional.of(realComment));
+		given(commentMapper.toResponse(any(CommentsEntity.class))).willAnswer(invocation -> {
+			CommentsEntity c = invocation.getArgument(0);
+			return new CommentResponse(c.getId(), userId, null, null, c.getContent(), c.getDepth(), c.getSequence(), null, null);
+		});
 
 		// when
 		CommentResponse response = commentsService.update(userId, commentId, request);

@@ -32,7 +32,7 @@ public class AccessTokenValidator implements OAuth2TokenValidator<Jwt> {
 		}
 
 		Instant issuedAt = jwt.getIssuedAt();
-		if (issuedAt == null || !issuedAt.isAfter(logoutAllAt)) {
+		if (issuedAt == null || issuedAt.isBefore(logoutAllAt)) {
 			return OAuth2TokenValidatorResult.failure(INVALID_TOKEN);
 		}
 		return OAuth2TokenValidatorResult.success();

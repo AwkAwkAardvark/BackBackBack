@@ -9,9 +9,6 @@ spring:
       physical-naming-strategy: org.hibernate.boot.model.naming.SpringPhysicalNamingStrategy # 물리적 네이밍 전략 설정
     properties:
       hibernate:
-        format_sql: true # SQL 쿼리 포맷팅 (개발 환경에서 유용)
-        highlight_sql: true # SQL 쿼리 하이라이팅 (개발 환경에서 유용)
-    show-sql: true # 콘솔에 SQL 쿼리 출력 (개발 환경에서 유용)
   flyway:
     enabled: true
   data:
@@ -89,7 +86,5 @@ jwt:
     role-prefix-accept-until-epoch: ${JWT_LEGACY_ROLE_PREFIX_ACCEPT_UNTIL_EPOCH:0} # 0이면 무기한 허용
 
 turnstile:
-  secret-key: ${TURNSTILE_SECRET_KEY:1x0000000000000000000000000000000AA} # 테스트용 기본값
-  site-key: ${TURNSTILE_SITE_KEY:1x00000000000000000000AA} # 테스트용 기본값
   verify-url: ${TURNSTILE_VERIFY_URL:https://challenges.cloudflare.com/turnstile/v0/siteverify}
   timeout: ${TURNSTILE_TIMEOUT:5000} # API 호출 타임아웃 (ms)

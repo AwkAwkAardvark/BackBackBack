@@ -28,17 +28,4 @@ public record CommentResponse(
 	@Schema(description = "수정 일시", example = "2026-01-25T12:40:00")
 	LocalDateTime updatedAt
 ) {
-	public static CommentResponse from(CommentsEntity comment) {
-		return new CommentResponse(
-			comment.getId(),
-			comment.getUser().getId(),
-			comment.getPost().getId(),
-			comment.getParent() != null ? comment.getParent().getId() : null,
-			comment.getContent(),
-			comment.getDepth(),
-			comment.getSequence(),
-			comment.getCreatedAt(),
-			comment.getUpdatedAt()
-		);
-	}
 }

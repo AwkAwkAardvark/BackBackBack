@@ -21,12 +21,4 @@ public record UserSummaryDto(
 	@Schema(description = "권한", example = "USER")
 	RoleName role
 ) {
-	public static UserSummaryDto from(UserEntity user, RoleName role) {
-		return new UserSummaryDto(
-			user.getUuid().toString(),
-			user.getEmail(),
-			user.getName(),
-			role
-		);
-	}
 }

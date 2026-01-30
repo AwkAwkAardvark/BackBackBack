@@ -57,6 +57,9 @@ class FileServiceTest {
 	@Mock
 	private PostsRepository postsRepository;
 
+	@Mock
+	private com.aivle.project.file.mapper.FileMapper fileMapper;
+
 	@Test
 	@DisplayName("게시글 파일을 업로드하면 메타데이터가 저장된다")
 	void upload_shouldStoreFiles() {
@@ -91,6 +94,11 @@ class FileServiceTest {
 			return entity;
 		});
 		given(postFilesRepository.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+
+		given(fileMapper.toResponse(eq(postId), any(FilesEntity.class))).willAnswer(invocation -> {
+			FilesEntity entity = invocation.getArgument(1);
+			return new FileResponse(entity.getId(), postId, entity.getStorageUrl(), entity.getOriginalFilename(), entity.getFileSize(), entity.getContentType(), null);
+		});
 
 		// when
 		List<FileResponse> responses = fileService.upload(postId, user, files);

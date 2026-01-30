@@ -61,20 +61,20 @@ class AuthServiceTest {
 	@Mock
 	private PasswordEncoder passwordEncoder;
 
+	@Mock
+	private com.aivle.project.user.mapper.UserMapper userMapper;
+
 	@Test
 	@DisplayName("로그인 성공 시 액세스/리프레시 토큰과 사용자 정보를 반환한다")
 	void login_shouldReturnTokenResponse() {
 		// given: 로그인 요청과 인증 성공 상태를 준비
-		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder);
+		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder, userMapper);
 
 		LoginRequest request = new LoginRequest();
 		request.setEmail("user@example.com");
 		request.setPassword("password");
 
 		CustomUserDetails userDetails = mock(CustomUserDetails.class);
-		when(userDetails.getUsername()).thenReturn("user@example.com");
-		when(userDetails.getName()).thenReturn("홍길동");
-		when(userDetails.getUuid()).thenReturn(UUID.randomUUID());
 		when(userDetails.getAuthorities()).thenReturn((List) List.of(new SimpleGrantedAuthority("ROLE_USER")));
 
 		Authentication authentication = mock(Authentication.class);
@@ -85,6 +85,14 @@ class AuthServiceTest {
 		when(jwtTokenService.createRefreshToken()).thenReturn("refresh");
 		when(jwtTokenService.getAccessTokenExpirationSeconds()).thenReturn(1800L);
 		when(jwtTokenService.getRefreshTokenExpirationSeconds()).thenReturn(604800L);
+
+		com.aivle.project.user.dto.UserSummaryDto userSummaryDto = new com.aivle.project.user.dto.UserSummaryDto(
+			UUID.randomUUID().toString(),
+			"user@example.com",
+			"홍길동",
+			com.aivle.project.user.entity.RoleName.ROLE_USER
+		);
+		when(userMapper.toSummaryDto(eq(userDetails), any())).thenReturn(userSummaryDto);
 
 		// when: 로그인을 수행
 		AuthLoginResponse response = authService.login(request, "127.0.0.1");
@@ -103,7 +111,7 @@ class AuthServiceTest {
 	@DisplayName("리프레시 요청 시 새 토큰 쌍을 반환한다")
 	void refresh_shouldReturnNewTokens() {
 		// given: 리프레시 토큰 회전 결과와 활성 사용자 상태를 준비
-		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder);
+		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder, userMapper);
 
 		TokenRefreshRequest request = new TokenRefreshRequest();
 		request.setRefreshToken("old-token");
@@ -141,7 +149,7 @@ class AuthServiceTest {
 	@DisplayName("비활성 사용자면 리프레시가 실패한다")
 	void refresh_shouldThrowWhenUserDisabled() {
 		// given: 리프레시 회전 결과와 비활성 사용자 상태를 준비
-		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder);
+		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder, userMapper);
 
 		TokenRefreshRequest request = new TokenRefreshRequest();
 		request.setRefreshToken("old-token");
@@ -172,7 +180,7 @@ class AuthServiceTest {
 	@DisplayName("인증 실패 시 로그인 요청이 거절된다")
 	void login_shouldThrowWhenAuthenticationFails() {
 		// given: 인증 실패 상태를 준비
-		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder);
+		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder, userMapper);
 
 		LoginRequest request = new LoginRequest();
 		request.setEmail("user@example.com");
@@ -192,7 +200,7 @@ class AuthServiceTest {
 	@DisplayName("이메일 미인증 사용자는 로그인 실패 메시지가 다르게 반환된다")
 	void login_shouldThrowWhenEmailNotVerified() {
 		// given: 이메일 미인증 상태를 준비
-		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder);
+		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder, userMapper);
 
 		LoginRequest request = new LoginRequest();
 		request.setEmail("user@example.com");
@@ -211,7 +219,7 @@ class AuthServiceTest {
 	@DisplayName("리프레시 토큰이 유효하지 않으면 예외가 전파된다")
 	void refresh_shouldThrowWhenRefreshTokenInvalid() {
 		// given: 리프레시 토큰 검증 실패 상태를 준비
-		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder);
+		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder, userMapper);
 
 		TokenRefreshRequest request = new TokenRefreshRequest();
 		request.setRefreshToken("invalid-refresh");
@@ -230,7 +238,7 @@ class AuthServiceTest {
 	@DisplayName("비밀번호 변경 시 현재 비밀번호 검증 후 업데이트한다")
 	void changePassword_shouldUpdatePassword() {
 		// given
-		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder);
+		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder, userMapper);
 		UserEntity user = mock(UserEntity.class);
 		PasswordChangeRequest request = new PasswordChangeRequest("old", "new");
 

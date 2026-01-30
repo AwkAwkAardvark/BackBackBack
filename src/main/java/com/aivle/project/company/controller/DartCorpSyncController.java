@@ -5,6 +5,7 @@ import com.aivle.project.common.error.CommonErrorCode;
 import com.aivle.project.common.error.CommonException;
 import com.aivle.project.company.batch.DartCorpCodeJobService;
 import com.aivle.project.company.dto.DartCorpSyncResponse;
+import com.aivle.project.company.mapper.DartCorpSyncMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -28,13 +29,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class DartCorpSyncController {
 
 	private final DartCorpCodeJobService jobService;
+	private final DartCorpSyncMapper dartCorpSyncMapper;
 
 	@PostMapping
 	@Operation(summary = "DART 기업 목록 동기화 실행", description = "관리자용 수동 실행 API")
 	public ResponseEntity<ApiResponse<DartCorpSyncResponse>> triggerSync() {
 		try {
 			JobExecution execution = jobService.launch("manual");
-			DartCorpSyncResponse response = new DartCorpSyncResponse(execution.getId(), execution.getStatus().name());
+			DartCorpSyncResponse response = dartCorpSyncMapper.toResponse(execution);
 			return ResponseEntity.accepted().body(ApiResponse.ok(response));
 		} catch (JobExecutionAlreadyRunningException | JobInstanceAlreadyCompleteException ex) {
 			throw new CommonException(CommonErrorCode.COMMON_409);

@@ -25,11 +25,12 @@ public class CommentsService {
 
 	private final CommentsRepository commentsRepository;
 	private final PostsRepository postsRepository;
+	private final com.aivle.project.comment.mapper.CommentMapper commentMapper;
 
 	@Transactional(readOnly = true)
 	public List<CommentResponse> listByPost(Long postId) {
 		return commentsRepository.findByPostIdOrderByDepthAscSequenceAsc(postId).stream()
-			.map(CommentResponse::from)
+			.map(commentMapper::toResponse)
 			.toList();
 	}
 
@@ -62,7 +63,7 @@ public class CommentsService {
 		);
 
 		CommentsEntity saved = commentsRepository.save(comment);
-		return CommentResponse.from(saved);
+		return commentMapper.toResponse(saved);
 	}
 
 	public CommentResponse update(Long userId, Long commentId, CommentUpdateRequest request) {
@@ -71,7 +72,7 @@ public class CommentsService {
 		validateOwner(comment, userId);
 
 		comment.update(request.getContent().trim());
-		return CommentResponse.from(comment);
+		return commentMapper.toResponse(comment);
 	}
 
 	public void delete(Long userId, Long commentId) {

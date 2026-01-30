@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
  * UserDetails 로딩 및 탈퇴 흐름 통합 테스트.
  */
 @SpringBootTest
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @Transactional
 @Import(TestSecurityConfig.class)
 class CustomUserDetailsServiceTest {

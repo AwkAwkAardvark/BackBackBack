@@ -12,13 +12,4 @@ public record CategorySummaryResponse(
 	int sortOrder,
 	boolean active
 ) {
-	public static CategorySummaryResponse from(CategoriesEntity category) {
-		return new CategorySummaryResponse(
-			category.getId(),
-			category.getName(),
-			category.getDescription(),
-			category.getSortOrder(),
-			category.isActive()
-		);
-	}
 }

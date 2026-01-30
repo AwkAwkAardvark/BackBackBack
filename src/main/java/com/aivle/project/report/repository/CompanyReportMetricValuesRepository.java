@@ -1,11 +1,13 @@
 package com.aivle.project.report.repository;
 
 import com.aivle.project.report.dto.ReportMetricRowProjection;
+import com.aivle.project.report.dto.ReportPredictMetricRowProjection;
 import com.aivle.project.report.entity.CompanyReportMetricValuesEntity;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import com.aivle.project.metric.entity.MetricValueType;
 
 /**
  * 보고서 지표 값 조회/저장 리포지토리.
@@ -41,5 +43,41 @@ public interface CompanyReportMetricValuesRepository extends JpaRepository<Compa
 		@Param("stockCode") String stockCode,
 		@Param("fromQuarterKey") int fromQuarterKey,
 		@Param("toQuarterKey") int toQuarterKey
+	);
+
+	@Query("""
+		select c.corpName as corpName,
+			c.stockCode as stockCode,
+			m.metricCode as metricCode,
+			m.metricNameKo as metricNameKo,
+			v.metricValue as metricValue,
+			v.valueType as valueType,
+			q.quarterKey as quarterKey,
+			rv.versionNo as versionNo,
+			rv.generatedAt as generatedAt,
+			f.id as pdfFileId,
+			f.originalFilename as pdfFileName,
+			f.contentType as pdfContentType
+		from CompanyReportMetricValuesEntity v
+		join v.reportVersion rv
+		join rv.companyReport cr
+		join cr.company c
+		join v.metric m
+		join v.quarter q
+		left join rv.pdfFile f
+		where c.stockCode = :stockCode
+			and cr.quarter.quarterKey = :quarterKey
+			and v.valueType = :valueType
+			and rv.versionNo = (
+				select max(rv2.versionNo)
+				from CompanyReportVersionsEntity rv2
+				where rv2.companyReport = cr
+			)
+		order by m.metricCode
+		""")
+	List<ReportPredictMetricRowProjection> findLatestMetricsByStockCodeAndQuarterKeyAndType(
+		@Param("stockCode") String stockCode,
+		@Param("quarterKey") int quarterKey,
+		@Param("valueType") MetricValueType valueType
 	);
 }

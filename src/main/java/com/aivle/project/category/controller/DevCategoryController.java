@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DevCategoryController {
 
 	private final CategoriesRepository categoriesRepository;
+	private final com.aivle.project.category.mapper.CategoryMapper categoryMapper;
 
 	@GetMapping("/categories")
 	@Operation(summary = "개발용 카테고리 조회", description = "개발 환경에서 카테고리를 조회합니다.", security = {})
@@ -33,7 +34,7 @@ public class DevCategoryController {
 	})
 	public ApiResponse<List<CategorySummaryResponse>> list() {
 		List<CategorySummaryResponse> response = categoriesRepository.findAllByDeletedAtIsNullOrderBySortOrderAscIdAsc().stream()
-			.map(CategorySummaryResponse::from)
+			.map(categoryMapper::toSummaryResponse)
 			.toList();
 		return ApiResponse.ok(response);
 	}
