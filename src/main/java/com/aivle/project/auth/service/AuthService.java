@@ -1,5 +1,6 @@
 package com.aivle.project.auth.service;
 
+import com.aivle.project.auth.dto.AuthLoginResponse;
 import com.aivle.project.auth.dto.LoginRequest;
 import com.aivle.project.auth.dto.PasswordChangeRequest;
 import com.aivle.project.auth.dto.TokenRefreshRequest;
@@ -8,16 +9,20 @@ import com.aivle.project.auth.exception.AuthErrorCode;
 import com.aivle.project.auth.exception.AuthException;
 import com.aivle.project.auth.token.JwtTokenService;
 import com.aivle.project.auth.token.RefreshTokenCache;
+import com.aivle.project.user.dto.UserSummaryDto;
+import com.aivle.project.user.entity.RoleName;
 import com.aivle.project.user.entity.UserEntity;
 import com.aivle.project.user.security.CustomUserDetails;
 import com.aivle.project.user.security.CustomUserDetailsService;
 import com.aivle.project.user.service.UserDomainService;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,11 +37,12 @@ public class AuthService {
 	private final AuthenticationManager authenticationManager;
 	private final JwtTokenService jwtTokenService;
 	private final RefreshTokenService refreshTokenService;
+	private final AccessTokenBlacklistService accessTokenBlacklistService;
 	private final CustomUserDetailsService userDetailsService;
 	private final UserDomainService userDomainService;
 	private final PasswordEncoder passwordEncoder;
 
-	public TokenResponse login(LoginRequest request, String ipAddress) {
+	public AuthLoginResponse login(LoginRequest request, String ipAddress) {
 		Authentication authentication = authenticate(request.getEmail(), request.getPassword());
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		String deviceId = normalizeDeviceId(request.getDeviceId());
@@ -47,13 +53,29 @@ public class AuthService {
 
 		boolean isPasswordExpired = userDetails.isPasswordExpired();
 
-		return TokenResponse.of(
+		TokenResponse tokenResponse = TokenResponse.of(
 			accessToken,
 			jwtTokenService.getAccessTokenExpirationSeconds(),
 			refreshToken,
 			jwtTokenService.getRefreshTokenExpirationSeconds(),
 			isPasswordExpired
 		);
+
+		RoleName role = userDetails.getAuthorities().stream()
+			.map(GrantedAuthority::getAuthority)
+			.filter(a -> a.startsWith("ROLE_"))
+			.map(RoleName::valueOf)
+			.findFirst()
+			.orElse(RoleName.ROLE_USER);
+
+		UserSummaryDto userSummary = new UserSummaryDto(
+			userDetails.getUuid().toString(),
+			userDetails.getUsername(),
+			userDetails.getName(),
+			role
+		);
+
+		return AuthLoginResponse.of(tokenResponse, userSummary);
 	}
 
 	public TokenResponse refresh(TokenRefreshRequest request) {
@@ -72,6 +94,16 @@ public class AuthService {
 			jwtTokenService.getRefreshTokenExpirationSeconds(),
 			userDetails.isPasswordExpired()
 		);
+	}
+
+	public void logout(String refreshToken) {
+		if (refreshToken != null && !refreshToken.isBlank()) {
+			refreshTokenService.revokeToken(refreshToken);
+		}
+	}
+
+	public void logoutAll(UserEntity user) {
+		accessTokenBlacklistService.markLogoutAll(user.getUuid().toString(), Instant.now());
 	}
 
 	@Transactional

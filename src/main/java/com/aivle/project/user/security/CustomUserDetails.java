@@ -19,6 +19,7 @@ public class CustomUserDetails implements UserDetails {
 	private final UUID uuid;
 	private final String email;
 	private final String password;
+	private final String name;
 	private final UserStatus status;
 	private final boolean passwordExpired;
 	private final List<GrantedAuthority> authorities;
@@ -28,6 +29,7 @@ public class CustomUserDetails implements UserDetails {
 		UUID uuid,
 		String email,
 		String password,
+		String name,
 		UserStatus status,
 		boolean passwordExpired,
 		List<GrantedAuthority> authorities
@@ -36,6 +38,7 @@ public class CustomUserDetails implements UserDetails {
 		this.uuid = uuid;
 		this.email = email;
 		this.password = password;
+		this.name = name;
 		this.status = status;
 		this.passwordExpired = passwordExpired;
 		this.authorities = authorities;
@@ -52,6 +55,7 @@ public class CustomUserDetails implements UserDetails {
 			user.getUuid(),
 			user.getEmail(),
 			user.getPassword(),
+			user.getName(),
 			user.getStatus(),
 			user.isPasswordExpired(),
 			authorities
@@ -60,6 +64,10 @@ public class CustomUserDetails implements UserDetails {
 
 	public Long getId() {
 		return id;
+	}
+
+	public String getName() {
+		return name;
 	}
 
 	public UUID getUuid() {
