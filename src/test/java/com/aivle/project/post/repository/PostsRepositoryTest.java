@@ -36,17 +36,23 @@ class PostsRepositoryTest {
 		PostsEntity second = newPost(user, category, "second", "content");
 		PostsEntity third = newPost(user, category, "third", "content");
 
-		setCreatedAt(first, LocalDateTime.now().minusDays(3));
-		setCreatedAt(second, LocalDateTime.now().minusDays(2));
-		setCreatedAt(third, LocalDateTime.now().minusDays(1));
-
 		entityManager.persist(first);
 		entityManager.persist(second);
 		entityManager.persist(third);
 		entityManager.flush();
 
+		// JPA Auditing을 우회하여 과거 시점으로 강제 업데이트
+		updateCreatedAt(first.getId(), LocalDateTime.now().minusDays(3));
+		updateCreatedAt(second.getId(), LocalDateTime.now().minusDays(2));
+		updateCreatedAt(third.getId(), LocalDateTime.now().minusDays(1));
+
+		// 영속성 컨텍스트를 비워 DB의 변경 사항을 반영
+		entityManager.clear();
+
 		// when
-		second.markDeleted();
+		// clear 후에는 엔티티를 다시 찾아와야 함
+		PostsEntity savedSecond = entityManager.find(PostsEntity.class, second.getId());
+		savedSecond.markDeleted();
 		entityManager.flush();
 
 		var results = postsRepository.findAllByDeletedAtIsNullOrderByCreatedAtDesc();
@@ -55,6 +61,14 @@ class PostsRepositoryTest {
 		assertThat(results).hasSize(2);
 		assertThat(results.get(0).getTitle()).isEqualTo("third");
 		assertThat(results.get(1).getTitle()).isEqualTo("first");
+	}
+
+	private void updateCreatedAt(Long id, LocalDateTime createdAt) {
+		entityManager.createNativeQuery("UPDATE posts SET created_at = ?1, updated_at = ?2 WHERE id = ?3")
+			.setParameter(1, createdAt)
+			.setParameter(2, createdAt)
+			.setParameter(3, id)
+			.executeUpdate();
 	}
 
 	@Test

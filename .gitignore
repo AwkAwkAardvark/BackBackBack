@@ -38,3 +38,6 @@ out/
 /FILE_UPLOAD_PLAN.md
 /repomix-output.xml
 /CODEBASE_ANALYSIS.md
+
+### LOG ###
+*.log

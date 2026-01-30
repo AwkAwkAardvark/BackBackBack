@@ -40,4 +40,16 @@ public class QuartersEntity extends BaseEntity {
 	@Column(name = "end_date", nullable = false)
 	private LocalDate endDate;
 
+	/**
+	 * 분기 엔티티 생성.
+	 */
+	public static QuartersEntity create(int year, int quarter, int quarterKey, LocalDate startDate, LocalDate endDate) {
+		QuartersEntity entity = new QuartersEntity();
+		entity.year = (short) year;
+		entity.quarter = (byte) quarter;
+		entity.quarterKey = quarterKey;
+		entity.startDate = startDate;
+		entity.endDate = endDate;
+		return entity;
+	}
 }

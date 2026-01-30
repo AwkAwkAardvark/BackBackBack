@@ -2,14 +2,10 @@ spring:
   config:
     import: optional:classpath:application-email.yml
   datasource:
-    url: ${DEV_DB_URL:jdbc:h2:mem:devdb-${random.uuid};MODE=MySQL;NON_KEYWORDS=YEAR,QUARTER;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
-    username: ${DEV_DB_USERNAME:sa}
-    password: ${DEV_DB_PASSWORD:}
-    driver-class-name: org.h2.Driver
-  h2:
-    console:
-      enabled: ${H2_CONSOLE_ENABLED:true}
-      path: ${H2_CONSOLE_PATH:/h2-console}
+    url: ${DEV_DB_URL:jdbc:mysql://localhost:${MYSQL_PORT:3306}/${MYSQL_DATABASE:bigprj}?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8}
+    username: ${DEV_DB_USERNAME:${MYSQL_USER:bigprj}}
+    password: ${DEV_DB_PASSWORD:${MYSQL_PASSWORD:bigprj}}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: validate
@@ -17,7 +13,7 @@ spring:
       hibernate:
         default_batch_fetch_size: 100 # In-memory batch fetching for to-many associations
   flyway:
-    locations: classpath:db/migration/h2
+    locations: classpath:db/migration
   test:
     database:
       replace: none

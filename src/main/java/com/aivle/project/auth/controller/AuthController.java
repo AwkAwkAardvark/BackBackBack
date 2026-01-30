@@ -26,6 +26,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -106,9 +108,10 @@ public class AuthController {
 		@ApiResponse(responseCode = "401", description = "인증 필요")
 	})
 	public ResponseEntity<Void> logout(
-		@Parameter(hidden = true) @CookieValue(name = "refresh_token", required = false) String cookieRefreshToken
+		@Parameter(hidden = true) @CookieValue(name = "refresh_token", required = false) String cookieRefreshToken,
+		@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt
 	) {
-		authService.logout(cookieRefreshToken);
+		authService.logout(cookieRefreshToken, jwt);
 		ResponseCookie cookie = createRefreshTokenCookie("", 0);
 		return ResponseEntity.ok()
 			.header(HttpHeaders.SET_COOKIE, cookie.toString())

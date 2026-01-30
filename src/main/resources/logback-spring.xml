@@ -1,0 +1,46 @@
+<configuration>
+
+  <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="./logs"/>
+  <springProperty scope="context" name="LOG_FILE" source="logging.file.name" defaultValue="./logs/project.log"/>
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>8192</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <includeCallerData>false</includeCallerData>
+    <neverBlock>true</neverBlock>
+    <appender-ref ref="CONSOLE"/>
+  </appender>
+
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_FILE}</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_PATH}/project.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>5GB</totalSizeCap>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>8192</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <includeCallerData>false</includeCallerData>
+    <neverBlock>true</neverBlock>
+    <appender-ref ref="FILE"/>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="ASYNC_CONSOLE"/>
+    <appender-ref ref="ASYNC_FILE"/>
+  </root>
+
+</configuration>

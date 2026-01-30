@@ -1,0 +1,123 @@
+package com.aivle.project.report.controller;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.aivle.project.company.entity.CompaniesEntity;
+import com.aivle.project.company.repository.CompaniesRepository;
+import com.aivle.project.common.config.TestSecurityConfig;
+import com.aivle.project.metric.entity.MetricValueType;
+import com.aivle.project.metric.entity.MetricsEntity;
+import com.aivle.project.metric.repository.MetricsRepository;
+import com.aivle.project.quarter.entity.QuartersEntity;
+import com.aivle.project.quarter.repository.QuartersRepository;
+import com.aivle.project.report.entity.CompanyReportMetricValuesEntity;
+import com.aivle.project.report.entity.CompanyReportVersionsEntity;
+import com.aivle.project.report.entity.CompanyReportsEntity;
+import com.aivle.project.report.repository.CompanyReportMetricValuesRepository;
+import com.aivle.project.report.repository.CompanyReportVersionsRepository;
+import com.aivle.project.report.repository.CompanyReportsRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Import(TestSecurityConfig.class)
+@Transactional
+class ReportMetricQueryControllerTest {
+
+	@Autowired
+	private MockMvc mockMvc;
+
+	@Autowired
+	private CompaniesRepository companiesRepository;
+
+	@Autowired
+	private QuartersRepository quartersRepository;
+
+	@Autowired
+	private MetricsRepository metricsRepository;
+
+	@Autowired
+	private CompanyReportsRepository companyReportsRepository;
+
+	@Autowired
+	private CompanyReportVersionsRepository companyReportVersionsRepository;
+
+	@Autowired
+	private CompanyReportMetricValuesRepository companyReportMetricValuesRepository;
+
+	@Test
+	@DisplayName("관리자 API로 분기별 그룹 지표를 조회한다")
+	void fetchGroupedMetrics() throws Exception {
+		// given
+		CompaniesEntity company = companiesRepository.save(CompaniesEntity.create(
+			"00000001",
+			"테스트기업",
+			"TEST_CO",
+			"000020",
+			LocalDate.of(2025, 1, 1)
+		));
+		QuartersEntity q20244 = quartersRepository.save(QuartersEntity.create(
+			2024,
+			4,
+			20244,
+			LocalDate.of(2024, 10, 1),
+			LocalDate.of(2024, 12, 31)
+		));
+		QuartersEntity q20253 = quartersRepository.save(QuartersEntity.create(
+			2025,
+			3,
+			20253,
+			LocalDate.of(2025, 7, 1),
+			LocalDate.of(2025, 9, 30)
+		));
+		MetricsEntity metric = metricsRepository.findByMetricCode("ROA").orElseThrow();
+
+		CompanyReportsEntity report = companyReportsRepository.save(
+			CompanyReportsEntity.create(company, q20253, null)
+		);
+		CompanyReportVersionsEntity latestVersion = companyReportVersionsRepository.save(
+			CompanyReportVersionsEntity.create(report, 1, LocalDateTime.now(), false, null)
+		);
+		companyReportMetricValuesRepository.save(CompanyReportMetricValuesEntity.create(
+			latestVersion,
+			metric,
+			q20244,
+			new BigDecimal("1.11"),
+			MetricValueType.ACTUAL
+		));
+		companyReportMetricValuesRepository.save(CompanyReportMetricValuesEntity.create(
+			latestVersion,
+			metric,
+			q20253,
+			new BigDecimal("2.22"),
+			MetricValueType.ACTUAL
+		));
+
+		// when & then
+		mockMvc.perform(get("/admin/reports/metrics/grouped")
+				.param("stockCode", "000020")
+				.param("fromQuarterKey", "20244")
+				.param("toQuarterKey", "20253")
+				.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.stockCode").value("000020"))
+			.andExpect(jsonPath("$.data.quarters.length()").value(2));
+	}
+}

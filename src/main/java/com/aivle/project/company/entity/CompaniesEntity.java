@@ -40,4 +40,22 @@ public class CompaniesEntity extends BaseEntity {
 	@Column(name = "modify_date")
 	private LocalDate modifyDate;
 
+	/**
+	 * 기업 엔티티 생성.
+	 */
+	public static CompaniesEntity create(
+		String corpCode,
+		String corpName,
+		String corpEngName,
+		String stockCode,
+		LocalDate modifyDate
+	) {
+		CompaniesEntity company = new CompaniesEntity();
+		company.corpCode = corpCode;
+		company.corpName = corpName;
+		company.corpEngName = corpEngName;
+		company.stockCode = stockCode;
+		company.modifyDate = modifyDate;
+		return company;
+	}
 }

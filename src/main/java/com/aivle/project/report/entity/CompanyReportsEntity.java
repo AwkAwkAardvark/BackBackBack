@@ -42,4 +42,15 @@ public class CompanyReportsEntity extends BaseEntity {
 	@JoinColumn(name = "post_id")
 	private PostsEntity post;
 
+	/**
+	 * 분기 보고서 생성.
+	 */
+	public static CompanyReportsEntity create(CompaniesEntity company, QuartersEntity quarter, PostsEntity post) {
+		CompanyReportsEntity report = new CompanyReportsEntity();
+		report.company = company;
+		report.quarter = quarter;
+		report.post = post;
+		return report;
+	}
+
 }

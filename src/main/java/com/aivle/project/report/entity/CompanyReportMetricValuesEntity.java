@@ -52,4 +52,22 @@ public class CompanyReportMetricValuesEntity extends BaseEntity {
 	@Column(name = "value_type", nullable = false, length = 20)
 	private MetricValueType valueType = MetricValueType.ACTUAL;
 
+	/**
+	 * 지표 값 생성.
+	 */
+	public static CompanyReportMetricValuesEntity create(
+		CompanyReportVersionsEntity reportVersion,
+		MetricsEntity metric,
+		QuartersEntity quarter,
+		BigDecimal metricValue,
+		MetricValueType valueType
+	) {
+		CompanyReportMetricValuesEntity value = new CompanyReportMetricValuesEntity();
+		value.reportVersion = reportVersion;
+		value.metric = metric;
+		value.quarter = quarter;
+		value.metricValue = metricValue;
+		value.valueType = valueType;
+		return value;
+	}
 }

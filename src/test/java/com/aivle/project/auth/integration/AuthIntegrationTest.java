@@ -20,6 +20,7 @@ import com.aivle.project.user.entity.RoleName;
 import com.aivle.project.user.entity.UserEntity;
 import com.aivle.project.user.entity.UserRoleEntity;
 import com.aivle.project.user.entity.UserStatus;
+import com.aivle.project.user.repository.RoleRepository;
 import com.aivle.project.user.repository.UserRepository;
 import com.aivle.project.user.repository.UserRoleRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -85,6 +86,9 @@ class AuthIntegrationTest {
 
 	@Autowired
 	private UserRoleRepository userRoleRepository;
+
+	@Autowired
+	private RoleRepository roleRepository;
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
@@ -365,6 +369,24 @@ class AuthIntegrationTest {
 		        assertThat(clearedCookie.getMaxAge()).isZero();
 		        assertThat(clearedCookie.getValue()).isEmpty();
 		    }
+
+	@Test
+	@DisplayName("로그아웃 후 기존 토큰으로 클레임 조회가 실패한다")
+	void logout_shouldRejectClaims() throws Exception {
+		// given
+		createActiveUserWithRole("logout-claims@test.com", "password", RoleName.ROLE_USER);
+		String accessToken = loginAndGetAccessToken("logout-claims@test.com", "password", "device-1");
+
+		// when: 로그아웃 요청
+		mockMvc.perform(post("/auth/logout")
+				.header("Authorization", "Bearer " + accessToken))
+			.andExpect(status().isOk());
+
+		// then: 기존 토큰으로 클레임 조회 시 실패
+		mockMvc.perform(get("/auth/console/claims")
+				.header("Authorization", "Bearer " + accessToken))
+			.andExpect(status().isUnauthorized());
+	}
 		
 		    @Test
 		    @DisplayName("전체 로그아웃 시 블랙리스트가 설정되고 쿠키가 삭제된다")	void logoutAll_shouldBlacklistAndClearCookie() throws Exception {
@@ -401,6 +423,24 @@ class AuthIntegrationTest {
 		// then: 블랙리스트 확인 (재로그인/토큰사용 시도는 별도 검증 필요하지만 여기선 성공 응답으로 갈음)
 	}
 
+	@Test
+	@DisplayName("전체 로그아웃 후 기존 토큰으로 클레임 조회가 실패한다")
+	void logoutAll_shouldRejectClaims() throws Exception {
+		// given
+		createActiveUserWithRole("logoutall2@test.com", "password", RoleName.ROLE_USER);
+		String accessToken = loginAndGetAccessToken("logoutall2@test.com", "password", "device-1");
+
+		// when: 전체 로그아웃
+		mockMvc.perform(post("/auth/logout-all")
+				.header("Authorization", "Bearer " + accessToken))
+			.andExpect(status().isOk());
+
+		// then: 기존 토큰으로 클레임 조회 시 실패
+		mockMvc.perform(get("/auth/console/claims")
+				.header("Authorization", "Bearer " + accessToken))
+			.andExpect(status().isUnauthorized());
+	}
+
 	private String loginAndGetAccessToken(String email, String password, String deviceId) throws Exception {
 		LoginRequest request = new LoginRequest();
 		request.setEmail(email);
@@ -422,8 +462,10 @@ class AuthIntegrationTest {
 		UserEntity user = newUser(email, rawPassword);
 		userRepository.save(user);
 
-		RoleEntity role = new RoleEntity(roleName, roleName.name().toLowerCase() + " role");
-		entityManager.persist(role);
+		RoleEntity role = roleRepository.findByName(roleName)
+			.orElseGet(() -> roleRepository.save(
+				new RoleEntity(roleName, roleName.name().toLowerCase() + " role")
+			));
 
 		userRoleRepository.save(new UserRoleEntity(user, role));
 		entityManager.flush();

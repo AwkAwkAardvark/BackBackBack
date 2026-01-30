@@ -5,7 +5,7 @@ DDL 원본은 아래 Flyway 마이그레이션 파일을 기준으로 관리합�
 
 ## 기준 마이그레이션
 - MySQL: `src/main/resources/db/migration/V1__init.sql`
-- H2(테스트): `src/main/resources/db/migration/h2/V1__init.sql`
+- H2(테스트): `src/main/resources/db/migration-h2/V1__init.sql`
 
 ## 공통 규칙
 - 대부분의 테이블은 **BIGINT PK + AUTO_INCREMENT**를 사용합니다.
@@ -149,4 +149,3 @@ companies ── users ── posts ── comments
                          └── quarters
                               └── company_report_metric_values ── metrics
 ```
-

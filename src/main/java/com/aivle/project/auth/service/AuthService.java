@@ -24,6 +24,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -96,9 +97,12 @@ public class AuthService {
 		);
 	}
 
-	public void logout(String refreshToken) {
+	public void logout(String refreshToken, Jwt jwt) {
 		if (refreshToken != null && !refreshToken.isBlank()) {
 			refreshTokenService.revokeToken(refreshToken);
+		}
+		if (jwt != null) {
+			accessTokenBlacklistService.blacklist(jwt.getId(), jwt.getExpiresAt());
 		}
 	}
 

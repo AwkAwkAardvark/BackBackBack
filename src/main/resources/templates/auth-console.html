@@ -274,13 +274,15 @@
 					</div>
 					<div class="row" style="margin-top: 12px;">
 						<div>
-							<label for="signup-name">이름</label>
-							<input id="signup-name" name="name" type="text" placeholder="홍길동" required>
+							<label for="signup-name">이름 (Username)</label>
+							<input id="signup-name" name="name" type="text" placeholder="user_id" required>
 						</div>
-						<div>
-							<label for="signup-phone">전화번호</label>
-							<input id="signup-phone" name="phone" type="text" placeholder="01012345678">
-						</div>
+					</div>
+					<div style="margin-top: 12px;">
+						<label class="checkbox">
+							<input id="signup-admin" type="checkbox">
+							관리자 권한으로 가입 (dev 전용)
+						</label>
 					</div>
 					<div style="margin-top: 14px;">
 						<label>Turnstile 검증</label>
@@ -337,6 +339,7 @@
 		const refreshPreview = document.getElementById("refresh-preview");
 		const accessExp = document.getElementById("access-exp");
 		const refreshExp = document.getElementById("refresh-exp");
+		const claimsButton = document.getElementById("claims-btn");
 		const signupTokenField = document.getElementById("signup-turnstile-token");
 		const signupTurnstileReset = document.getElementById("signup-turnstile-reset");
 		const signupSubmitButton = document.querySelector("#signup-form button.primary");
@@ -378,6 +381,16 @@
 			refreshPreview.textContent = state.refreshToken ? state.refreshToken.slice(0, 30) + "..." : "-";
 			accessExp.textContent = state.accessExpiresIn ? state.accessExpiresIn + "s" : "-";
 			refreshExp.textContent = state.refreshExpiresIn ? state.refreshExpiresIn + "s" : "-";
+			updateClaimsButtonState();
+		};
+
+		const updateClaimsButtonState = () => {
+			if (!claimsButton) {
+				return;
+			}
+			const hasAccessToken = Boolean(state.accessToken);
+			claimsButton.disabled = !hasAccessToken;
+			claimsButton.title = hasAccessToken ? "" : "Access 토큰이 필요합니다.";
 		};
 
 		const apiFetch = async (url, options = {}) => {
@@ -409,9 +422,9 @@
 					return;
 				}
 				state.accessToken = data.accessToken;
-				state.refreshToken = data.refreshToken;
+				state.refreshToken = data.refreshToken || "";
 				state.accessExpiresIn = data.expiresIn;
-				state.refreshExpiresIn = data.refreshExpiresIn;
+				state.refreshExpiresIn = data.refreshExpiresIn || 0;
 				saveState();
 				updateTokenView();
 				setLog({ status: response.status, data });
@@ -430,8 +443,8 @@
 			const payload = {
 				email: document.getElementById("signup-email").value,
 				password: document.getElementById("signup-password").value,
-				name: document.getElementById("signup-name").value,
-				phone: document.getElementById("signup-phone").value,
+				username: document.getElementById("signup-name").value,
+				admin: document.getElementById("signup-admin")?.checked === true,
 				turnstileToken: turnstileToken
 			};
 
@@ -488,6 +501,12 @@
 					setLog("로그인이 필요합니다. Auth Console에서 로그인 후 다시 시도하세요.");
 					return;
 				}
+				state.accessToken = "";
+				state.refreshToken = "";
+				state.accessExpiresIn = 0;
+				state.refreshExpiresIn = 0;
+				saveState();
+				updateTokenView();
 				setLog({ status: response.status, message: "logout" });
 			} catch (error) {
 				setLog({ error: error.message });
@@ -506,6 +525,12 @@
 					setLog("로그인이 필요합니다. Auth Console에서 로그인 후 다시 시도하세요.");
 					return;
 				}
+				state.accessToken = "";
+				state.refreshToken = "";
+				state.accessExpiresIn = 0;
+				state.refreshExpiresIn = 0;
+				saveState();
+				updateTokenView();
 				setLog({ status: response.status, message: "logout-all" });
 			} catch (error) {
 				setLog({ error: error.message });
@@ -515,6 +540,16 @@
 		document.getElementById("claims-btn").addEventListener("click", async () => {
 			try {
 				const response = await apiFetch("/auth/console/claims", { method: "GET" });
+				if (response.status === 401 || response.status === 403) {
+					state.accessToken = "";
+					state.refreshToken = "";
+					state.accessExpiresIn = 0;
+					state.refreshExpiresIn = 0;
+					saveState();
+					updateTokenView();
+					setLog("보호 API 호출에 실패했습니다. 토큰이 만료되었거나 로그아웃 상태입니다.");
+					return;
+				}
 				const data = await response.json();
 				setLog({ status: response.status, data });
 			} catch (error) {

@@ -91,7 +91,7 @@ class AccessTokenBlacklistServiceTest {
 		// then
 		verify(valueOperations).set(
 			org.mockito.ArgumentMatchers.eq("logout-all:" + userId),
-			org.mockito.ArgumentMatchers.eq(String.valueOf(logoutAt.getEpochSecond())),
+			org.mockito.ArgumentMatchers.eq(String.valueOf(logoutAt.toEpochMilli())),
 			org.mockito.ArgumentMatchers.eq(Duration.ofSeconds(3600))
 		);
 	}
@@ -114,13 +114,13 @@ class AccessTokenBlacklistServiceTest {
 	void getLogoutAllAt_shouldReturnInstant() {
 		// given
 		given(redisTemplate.opsForValue()).willReturn(valueOperations);
-		given(valueOperations.get("logout-all:user-1")).willReturn("1700000000");
+		given(valueOperations.get("logout-all:user-1")).willReturn("1700000000123");
 
 		// when
 		Instant result = accessTokenBlacklistService.getLogoutAllAt("user-1");
 
 		// then
-		assertThat(result).isEqualTo(Instant.ofEpochSecond(1700000000));
+		assertThat(result).isEqualTo(Instant.ofEpochMilli(1700000000123L));
 	}
 
 	@Test

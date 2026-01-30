@@ -26,6 +26,9 @@ spring:
           max-idle: 10
           min-idle: 5
           max-wait: 3000ms
+  batch:
+    job:
+      enabled: false
   servlet:
     multipart:
       enabled: true

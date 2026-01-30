@@ -136,6 +136,46 @@
 			margin-top: 14px;
 		}
 
+		.inline-actions {
+			display: flex;
+			gap: 8px;
+			align-items: center;
+		}
+
+		.inline-actions input {
+			flex: 1;
+		}
+
+		.list {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			margin-top: 12px;
+		}
+
+		.list-item {
+			text-align: left;
+			padding: 10px 12px;
+			border-radius: 12px;
+			border: 1px solid var(--line);
+			background: #ffffff;
+			font-size: 13px;
+			cursor: pointer;
+		}
+
+		.list-item:hover {
+			border-color: var(--accent-2);
+		}
+
+		.list-empty {
+			padding: 12px;
+			border-radius: 12px;
+			border: 1px dashed var(--line);
+			color: var(--ink-soft);
+			font-size: 13px;
+			text-align: center;
+		}
+
 		button {
 			border: none;
 			padding: 12px 16px;
@@ -310,6 +350,82 @@
 					<button class="ghost" type="button" id="clear-session">세션 초기화</button>
 				</div>
 				<p class="footer-note">Auth Console에서 로그인 후 이 페이지를 새로고침하면 토큰이 반영됩니다.</p>
+			</div>
+
+			<div class="card" style="animation-delay: 0.06s;">
+				<h2>DART 기업 동기화</h2>
+				<div class="actions">
+					<button class="primary" type="button" id="dart-corp-sync">기업 목록 동기화 실행</button>
+				</div>
+				<p class="footer-note">관리자 토큰(ROLE_ADMIN) 필요. POST /admin/dart/corp-sync</p>
+			</div>
+
+			<div class="card" style="animation-delay: 0.07s;">
+				<h2>보고서 지표 업로드</h2>
+				<div class="row">
+					<div>
+						<label for="report-quarter-key">quarterKey</label>
+						<input id="report-quarter-key" type="number" placeholder="20253">
+					</div>
+				</div>
+				<label for="report-file" style="margin-top: 12px;">excel</label>
+				<input id="report-file" type="file" accept=".xlsx">
+				<div class="actions">
+					<button class="secondary" type="button" id="report-import">업로드 실행</button>
+				</div>
+				<p class="footer-note">관리자 토큰(ROLE_ADMIN) 필요. POST /admin/reports/metrics/import</p>
+			</div>
+
+			<div class="card" style="animation-delay: 0.072s;">
+				<h2>보고서 지표 예측값 적재</h2>
+				<div class="row">
+					<div>
+						<label for="predict-stock-code">stockCode</label>
+						<input id="predict-stock-code" type="text" placeholder="000020">
+					</div>
+					<div>
+						<label for="predict-quarter-key">quarterKey</label>
+						<input id="predict-quarter-key" type="number" placeholder="20253">
+					</div>
+				</div>
+				<label for="predict-metrics" style="margin-top: 12px;">metrics (metric_name_en: value)</label>
+				<textarea id="predict-metrics" placeholder='{"ROA":1.23,"OperatingProfitMargin":2.34,"DebtToEquityRatio":null}'></textarea>
+				<div class="actions">
+					<button class="secondary" type="button" id="predict-import">예측값 적재</button>
+				</div>
+				<p class="footer-note">관리자 토큰(ROLE_ADMIN) 필요. POST /admin/reports/metrics/predict</p>
+			</div>
+
+			<div class="card" style="animation-delay: 0.075s;">
+				<h2>보고서 지표 조회(분기별)</h2>
+				<div class="row">
+					<div>
+						<label for="report-company-keyword">기업명 검색</label>
+						<div class="inline-actions">
+							<input id="report-company-keyword" type="text" placeholder="기업명/영문명">
+							<button class="ghost" type="button" id="report-company-search">검색</button>
+						</div>
+					</div>
+				</div>
+				<div class="list" id="report-company-results" aria-live="polite"></div>
+				<div class="row" style="margin-top: 12px;">
+					<div>
+						<label for="report-stock-code">stockCode</label>
+						<input id="report-stock-code" type="text" placeholder="000020">
+					</div>
+					<div>
+						<label for="report-from-quarter-key">fromQuarterKey</label>
+						<input id="report-from-quarter-key" type="number" placeholder="20244">
+					</div>
+					<div>
+						<label for="report-to-quarter-key">toQuarterKey</label>
+						<input id="report-to-quarter-key" type="number" placeholder="20253">
+					</div>
+				</div>
+				<div class="actions">
+					<button class="secondary" type="button" id="report-grouped-query">조회 실행</button>
+				</div>
+				<p class="footer-note">관리자 토큰(ROLE_ADMIN) 필요. GET /admin/reports/metrics/grouped</p>
 			</div>
 
 			<div class="card" style="animation-delay: 0.08s;">
@@ -621,6 +737,194 @@
 			saveSession();
 			updateTokenView();
 			setLog("세션 상태를 초기화했습니다.");
+		});
+
+		document.getElementById("dart-corp-sync")?.addEventListener("click", async () => {
+			try {
+				const response = await apiFetch("/admin/dart/corp-sync", { method: "POST" });
+				const data = await response.json();
+				setLog({ status: response.status, data });
+			} catch (e) {
+				setLog({ error: e.message });
+			}
+		});
+
+		document.getElementById("report-import")?.addEventListener("click", async () => {
+			const quarterKey = readNumber("report-quarter-key", null);
+			if (!quarterKey) {
+				setLog("quarterKey를 입력해주세요.");
+				return;
+			}
+
+			const fileInput = document.getElementById("report-file");
+			const file = fileInput?.files?.[0];
+			if (!file) {
+				setLog("업로드 파일을 선택해주세요.");
+				return;
+			}
+
+			const formData = new FormData();
+			formData.append("quarterKey", String(quarterKey));
+			formData.append("file", file);
+
+			try {
+				const response = await apiFetch("/admin/reports/metrics/import", {
+					method: "POST",
+					body: formData
+				});
+				const data = await response.json();
+				setLog({ status: response.status, data });
+			} catch (e) {
+				setLog({ error: e.message });
+			}
+		});
+
+		document.getElementById("predict-import")?.addEventListener("click", async () => {
+			const stockCode = readText("predict-stock-code");
+			const quarterKey = readNumber("predict-quarter-key", null);
+			const metricsRaw = readText("predict-metrics");
+
+			if (!stockCode) {
+				setLog("stockCode를 입력해주세요.");
+				return;
+			}
+			if (!quarterKey) {
+				setLog("quarterKey를 입력해주세요.");
+				return;
+			}
+			if (!metricsRaw) {
+				setLog("metrics JSON을 입력해주세요.");
+				return;
+			}
+
+			let metrics;
+			try {
+				metrics = JSON.parse(metricsRaw);
+			} catch (e) {
+				setLog("metrics JSON 파싱 실패: " + e.message);
+				return;
+			}
+
+			try {
+				const response = await apiFetch("/admin/reports/metrics/predict", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						stockCode,
+						quarterKey,
+						metrics
+					})
+				});
+				const data = await response.json();
+				setLog({ status: response.status, data });
+			} catch (e) {
+				setLog({ error: e.message });
+			}
+		});
+
+		document.getElementById("report-grouped-query")?.addEventListener("click", async () => {
+			const stockCode = readText("report-stock-code");
+			const fromQuarterKey = readNumber("report-from-quarter-key", null);
+			const toQuarterKey = readNumber("report-to-quarter-key", null);
+			if (!stockCode) {
+				setLog("stockCode를 입력해주세요.");
+				return;
+			}
+			if (!fromQuarterKey || !toQuarterKey) {
+				setLog("fromQuarterKey와 toQuarterKey를 입력해주세요.");
+				return;
+			}
+
+			try {
+				const url = `/admin/reports/metrics/grouped?stockCode=${encodeURIComponent(stockCode)}&fromQuarterKey=${fromQuarterKey}&toQuarterKey=${toQuarterKey}`;
+				const response = await apiFetch(url);
+				const data = await response.json();
+				setLog({ status: response.status, data });
+			} catch (e) {
+				setLog({ error: e.message });
+			}
+		});
+
+		const companyKeywordInput = document.getElementById("report-company-keyword");
+		const companySearchButton = document.getElementById("report-company-search");
+		const companyResultBox = document.getElementById("report-company-results");
+		let companySearchTimer = null;
+
+		const clearCompanyResults = () => {
+			if (companyResultBox) {
+				companyResultBox.innerHTML = "";
+			}
+		};
+
+		const renderCompanyResults = (items) => {
+			if (!companyResultBox) {
+				return;
+			}
+			companyResultBox.innerHTML = "";
+			if (!items || items.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "list-empty";
+				empty.textContent = "검색 결과가 없습니다.";
+				companyResultBox.appendChild(empty);
+				return;
+			}
+			items.forEach((item) => {
+				const button = document.createElement("button");
+				button.type = "button";
+				button.className = "list-item";
+				button.textContent = `${item.corpName} (${item.stockCode || "-"})`;
+				button.addEventListener("click", () => {
+					const stockInput = document.getElementById("report-stock-code");
+					if (stockInput) {
+						stockInput.value = item.stockCode || "";
+					}
+					setLog(`선택됨: ${item.corpName} / ${item.stockCode || "-"}`);
+				});
+				companyResultBox.appendChild(button);
+			});
+		};
+
+		const fetchCompanyResults = async (keyword) => {
+			if (!keyword || keyword.length < 2) {
+				setLog("기업명 검색은 2자 이상 입력해주세요.");
+				clearCompanyResults();
+				return;
+			}
+			try {
+				const url = `/admin/companies/search?keyword=${encodeURIComponent(keyword)}`;
+				const response = await apiFetch(url);
+				const payload = await response.json();
+				if (!response.ok || !payload.success) {
+					setLog({ status: response.status, data: payload });
+					clearCompanyResults();
+					return;
+				}
+				renderCompanyResults(payload.data || []);
+			} catch (e) {
+				setLog({ error: e.message });
+			}
+		};
+
+		const scheduleCompanySearch = (keyword) => {
+			if (companySearchTimer) {
+				clearTimeout(companySearchTimer);
+			}
+			if (!keyword || keyword.trim().length < 2) {
+				clearCompanyResults();
+				return;
+			}
+			companySearchTimer = setTimeout(() => {
+				fetchCompanyResults(keyword.trim());
+			}, 300);
+		};
+
+		companyKeywordInput?.addEventListener("input", (event) => {
+			scheduleCompanySearch(event.target.value);
+		});
+
+		companySearchButton?.addEventListener("click", () => {
+			const keyword = readText("report-company-keyword");
+			fetchCompanyResults(keyword.trim());
 		});
 
 		document.getElementById("list-posts")?.addEventListener("click", async () => {

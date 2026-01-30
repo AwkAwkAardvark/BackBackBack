@@ -44,7 +44,7 @@ public class AccessTokenBlacklistService {
 		}
 		redisTemplate.opsForValue().set(
 			logoutAllKey(userId),
-			String.valueOf(logoutAt.getEpochSecond()),
+			String.valueOf(logoutAt.toEpochMilli()),
 			Duration.ofSeconds(ttlSeconds)
 		);
 	}
@@ -65,7 +65,7 @@ public class AccessTokenBlacklistService {
 			return null;
 		}
 		try {
-			return Instant.ofEpochSecond(Long.parseLong(value));
+			return Instant.ofEpochMilli(Long.parseLong(value));
 		} catch (NumberFormatException ex) {
 			return null;
 		}
