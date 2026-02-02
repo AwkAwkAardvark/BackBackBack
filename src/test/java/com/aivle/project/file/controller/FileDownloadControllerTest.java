@@ -80,7 +80,7 @@ class FileDownloadControllerTest {
 			.willReturn(Optional.of("https://example.com/presigned"));
 
 		// when & then
-		MvcResult result = mockMvc.perform(get("/files/1"))
+		MvcResult result = mockMvc.perform(get("/api/files/1"))
 			.andExpect(status().isFound())
 			.andReturn();
 
@@ -109,7 +109,7 @@ class FileDownloadControllerTest {
 			.willReturn(Optional.of("https://example.com/presigned"));
 
 		// when & then
-		mockMvc.perform(get("/files/1/url"))
+		mockMvc.perform(get("/api/files/1/url"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data.url").value("https://example.com/presigned"));

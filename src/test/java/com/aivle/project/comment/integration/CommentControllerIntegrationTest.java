@@ -69,7 +69,7 @@ class CommentControllerIntegrationTest {
 		request.setContent("댓글 내용");
 
 		// when
-		MvcResult result = mockMvc.perform(post("/posts/{postId}/comments", post.getId())
+		MvcResult result = mockMvc.perform(post("/api/posts/{postId}/comments", post.getId())
 				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString())))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
@@ -103,7 +103,7 @@ class CommentControllerIntegrationTest {
 		commentsService.create(user, request);
 
 		// when
-		MvcResult result = mockMvc.perform(get("/posts/{postId}/comments", post.getId())
+		MvcResult result = mockMvc.perform(get("/api/posts/{postId}/comments", post.getId())
 				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString()))))
 			.andExpect(status().isOk())
 			.andReturn();
@@ -133,7 +133,7 @@ class CommentControllerIntegrationTest {
 		updateRequest.setContent(" 수정 ");
 
 		// when
-		MvcResult result = mockMvc.perform(patch("/comments/{commentId}", created.id())
+		MvcResult result = mockMvc.perform(patch("/api/comments/{commentId}", created.id())
 				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString())))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(updateRequest)))
@@ -162,7 +162,7 @@ class CommentControllerIntegrationTest {
 		CommentResponse created = commentsService.create(user, createRequest);
 
 		// when
-		mockMvc.perform(delete("/comments/{commentId}", created.id())
+		mockMvc.perform(delete("/api/comments/{commentId}", created.id())
 				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString()))))
 			.andExpect(status().isOk());
 

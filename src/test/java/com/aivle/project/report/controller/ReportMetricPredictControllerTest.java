@@ -71,7 +71,7 @@ class ReportMetricPredictControllerTest {
 		payload.put("metrics", metrics);
 
 		// when
-		mockMvc.perform(post("/admin/reports/metrics/predict")
+		mockMvc.perform(post("/api/admin/reports/metrics/predict")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(new ObjectMapper().writeValueAsBytes(payload))
 				.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))

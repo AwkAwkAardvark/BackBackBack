@@ -51,7 +51,7 @@ class CategoryControllerTest {
 		given(categoryMapper.toSummaryResponse(any(CategoriesEntity.class)))
 			.willReturn(response);
 
-		mockMvc.perform(get("/categories"))
+		mockMvc.perform(get("/api/categories"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data[0].name").value("공지"));

@@ -35,7 +35,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @Tag(name = "파일", description = "파일 다운로드 API")
 @Controller
 @RequiredArgsConstructor
-@RequestMapping("/files")
+@RequestMapping("/api/files")
 public class FileDownloadController {
 
 	private final FileService fileService;
@@ -117,7 +117,7 @@ public class FileDownloadController {
 			return fileDownloadUrlResolver.resolve(file).orElse(storageUrl);
 		}
 		return ServletUriComponentsBuilder.fromCurrentContextPath()
-			.path("/files/")
+			.path("/api/files/")
 			.path(fileId.toString())
 			.toUriString();
 	}

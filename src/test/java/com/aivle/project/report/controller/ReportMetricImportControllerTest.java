@@ -72,7 +72,7 @@ class ReportMetricImportControllerTest {
 		);
 
 		// when
-		mockMvc.perform(multipart("/admin/reports/metrics/import")
+		mockMvc.perform(multipart("/api/admin/reports/metrics/import")
 				.file(file)
 				.param("quarterKey", "20253")
 				.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))

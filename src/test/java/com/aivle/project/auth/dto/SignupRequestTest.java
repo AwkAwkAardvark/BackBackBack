@@ -109,7 +109,7 @@ class SignupRequestTest {
 	private SignupRequest createValidRequest() {
 		SignupRequest request = new SignupRequest();
 		request.setEmail("test@example.com");
-		request.setUsername("test_user");
+		request.setName("test_user");
 		request.setTurnstileToken("test-turnstile-token");
 		return request;
 	}

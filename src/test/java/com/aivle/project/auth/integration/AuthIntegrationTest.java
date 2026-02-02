@@ -132,7 +132,7 @@ class AuthIntegrationTest {
 		request.setDeviceInfo("ios");
 
 		// when: 로그인 요청을 수행
-		MvcResult result = mockMvc.perform(post("/auth/login")
+		MvcResult result = mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andExpect(status().isOk())
@@ -221,11 +221,11 @@ class AuthIntegrationTest {
 		SignupRequest request = new SignupRequest();
 		request.setEmail("newuser@test.com");
 		request.setPassword("ValidPass123!");
-		request.setUsername("testuser_id");
+		request.setName("testuser_id");
 		request.setTurnstileToken("valid-turnstile-token");
 
 		// when: 회원가입 요청 수행
-		MvcResult result = mockMvc.perform(post("/auth/signup")
+		MvcResult result = mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andExpect(status().isCreated())
@@ -252,11 +252,11 @@ class AuthIntegrationTest {
 		SignupRequest request = new SignupRequest();
 		request.setEmail("notoken@test.com");
 		request.setPassword("ValidPass123!");
-		request.setUsername("notoken_id");
+		request.setName("notoken_id");
 		// turnstileToken은 null로 유지
 
 		// when: 회원가입 요청 수행
-		MvcResult result = mockMvc.perform(post("/auth/signup")
+		MvcResult result = mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andExpect(status().isBadRequest())
@@ -284,7 +284,7 @@ class AuthIntegrationTest {
 		PasswordChangeRequest request = new PasswordChangeRequest(oldPassword, newPassword);
 
 		// when: 비밀번호 변경 요청
-		mockMvc.perform(post("/auth/change-password")
+		mockMvc.perform(post("/api/auth/change-password")
 				.header("Authorization", "Bearer " + accessToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
@@ -296,7 +296,7 @@ class AuthIntegrationTest {
 		loginRequest.setPassword(newPassword);
 		loginRequest.setDeviceId("device-1");
 
-		mockMvc.perform(post("/auth/login")
+		mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(loginRequest)))
 			.andDo(print())
@@ -318,7 +318,7 @@ class AuthIntegrationTest {
 		loginRequest.setPassword("password");
 		loginRequest.setDeviceId("device-1");
 
-		MvcResult loginResult = mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(loginRequest)))
 			.andExpect(status().isOk())
@@ -328,7 +328,7 @@ class AuthIntegrationTest {
 		assertThat(refreshCookie).isNotNull();
 
 		// when: 쿠키와 함께 리프레시 요청
-		MvcResult refreshResult = mockMvc.perform(post("/auth/refresh")
+		MvcResult refreshResult = mockMvc.perform(post("/api/auth/refresh")
 				.cookie(refreshCookie))
 			.andExpect(status().isOk())
 			.andReturn();
@@ -353,7 +353,7 @@ class AuthIntegrationTest {
 		loginRequest.setPassword("password");
 		loginRequest.setDeviceId("device-1");
 
-		MvcResult loginResult = mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(loginRequest)))
 			.andExpect(status().isOk())
@@ -368,7 +368,7 @@ class AuthIntegrationTest {
 		assertThat(refreshCookie).isNotNull();
 
 		// when: 로그아웃 요청
-		MvcResult logoutResult = mockMvc.perform(post("/auth/logout")
+		MvcResult logoutResult = mockMvc.perform(post("/api/auth/logout")
 				.header("Authorization", "Bearer " + accessToken)
 				.cookie(refreshCookie))
 			.andExpect(status().isOk())
@@ -390,7 +390,7 @@ class AuthIntegrationTest {
 		String accessToken = loginAndGetAccessToken("logout-claims@test.com", "password", "device-1");
 
 		// when: 로그아웃 요청
-		mockMvc.perform(post("/auth/logout")
+		mockMvc.perform(post("/api/auth/logout")
 				.header("Authorization", "Bearer " + accessToken))
 			.andExpect(status().isOk());
 
@@ -410,7 +410,7 @@ class AuthIntegrationTest {
 		loginRequest.setPassword("password");
 		loginRequest.setDeviceId("device-1");
 
-		MvcResult loginResult = mockMvc.perform(post("/auth/login")
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(loginRequest)))
 			.andExpect(status().isOk())
@@ -421,7 +421,7 @@ class AuthIntegrationTest {
 		Cookie refreshCookie = loginResult.getResponse().getCookie("refresh_token");
 
 		// when: 전체 로그아웃 요청 (인증 필요)
-		MvcResult logoutAllResult = mockMvc.perform(post("/auth/logout-all")
+		MvcResult logoutAllResult = mockMvc.perform(post("/api/auth/logout-all")
 				.header("Authorization", "Bearer " + accessToken)
 				.cookie(refreshCookie))
 			.andExpect(status().isOk())
@@ -443,7 +443,7 @@ class AuthIntegrationTest {
 		String accessToken = loginAndGetAccessToken("logoutall2@test.com", "password", "device-1");
 
 		// when: 전체 로그아웃
-		mockMvc.perform(post("/auth/logout-all")
+		mockMvc.perform(post("/api/auth/logout-all")
 				.header("Authorization", "Bearer " + accessToken))
 			.andExpect(status().isOk());
 
@@ -460,7 +460,7 @@ class AuthIntegrationTest {
 		request.setDeviceId(deviceId);
 		request.setDeviceInfo("test-device");
 
-		MvcResult result = mockMvc.perform(post("/auth/login")
+		MvcResult result = mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andExpect(status().isOk())

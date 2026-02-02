@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "게시글", description = "게시글 CRUD API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/posts")
+@RequestMapping("/api/posts")
 public class PostController {
 
 	private final PostService postService;

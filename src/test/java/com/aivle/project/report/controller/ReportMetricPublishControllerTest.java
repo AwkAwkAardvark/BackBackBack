@@ -78,7 +78,7 @@ class ReportMetricPublishControllerTest {
 		String metricsJson = new ObjectMapper().writeValueAsString(metrics);
 
 		// when
-		mockMvc.perform(multipart("/admin/reports/metrics/publish")
+		mockMvc.perform(multipart("/api/admin/reports/metrics/publish")
 				.file(pdf)
 				.param("stockCode", "000020")
 				.param("quarterKey", "20253")

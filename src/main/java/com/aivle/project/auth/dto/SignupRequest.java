@@ -34,8 +34,8 @@ public class SignupRequest {
 
 	@NotBlank
 	@Size(min = 2, max = 50)
-	@Schema(description = "로그인 ID (헤더 표시 및 서비스용)", example = "user_id")
-	private String username;
+	@Schema(description = "사용자 표시 이름", example = "goguma")
+	private String name;
 
 	@Schema(description = "관리자 권한 가입 여부(개발 환경 전용)", example = "false")
 	private boolean admin;

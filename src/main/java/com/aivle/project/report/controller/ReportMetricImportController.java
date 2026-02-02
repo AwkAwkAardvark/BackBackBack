@@ -41,7 +41,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Tag(name = "보고서 지표", description = "기업 보고서 지표 업로드")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/admin/reports/metrics")
+@RequestMapping("/api/admin/reports/metrics")
 public class ReportMetricImportController {
 
 	private final ExcelMetricParser excelMetricParser;

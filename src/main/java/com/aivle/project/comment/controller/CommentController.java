@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "댓글", description = "댓글 CRUD API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping
+@RequestMapping("/api")
 public class CommentController {
 
 	private final CommentsService commentsService;

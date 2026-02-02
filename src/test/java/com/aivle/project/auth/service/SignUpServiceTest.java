@@ -58,7 +58,7 @@ class SignUpServiceTest {
 		SignupRequest request = new SignupRequest();
 		request.setEmail("new@test.com");
 		request.setPassword("password123");
-		request.setUsername("tester");
+		request.setName("tester");
 		request.setTurnstileToken("valid-token");
 
 		UserEntity user = UserEntity.create("new@test.com", "encoded", "tester", null, UserStatus.ACTIVE);
@@ -67,7 +67,7 @@ class SignUpServiceTest {
 		when(turnstileService.verifyTokenSync("valid-token", "127.0.0.1")).thenReturn(true);
 		when(userDomainService.existsByEmail("new@test.com")).thenReturn(false);
 		when(passwordEncoder.encode("password123")).thenReturn("encoded");
-		when(userDomainService.register("new@test.com", "encoded", "tester", null, RoleName.ROLE_USER))
+		when(userDomainService.register("new@test.com", "encoded", request.getName(), null, RoleName.ROLE_USER))
 			.thenReturn(user);
 		when(authMapper.toSignupResponse(user, RoleName.ROLE_USER)).thenReturn(signupResponse);
 
@@ -87,7 +87,7 @@ class SignUpServiceTest {
 		SignupRequest request = new SignupRequest();
 		request.setEmail("verify@test.com");
 		request.setPassword("password123");
-		request.setUsername("tester");
+		request.setName("tester");
 		request.setTurnstileToken("valid-token");
 
 		UserEntity user = UserEntity.create("verify@test.com", "encoded", "tester", null, UserStatus.PENDING);
@@ -96,7 +96,7 @@ class SignUpServiceTest {
 		when(turnstileService.verifyTokenSync("valid-token", "127.0.0.1")).thenReturn(true);
 		when(userDomainService.existsByEmail("verify@test.com")).thenReturn(false);
 		when(passwordEncoder.encode("password123")).thenReturn("encoded");
-		when(userDomainService.register("verify@test.com", "encoded", "tester", null, RoleName.ROLE_USER))
+		when(userDomainService.register("verify@test.com", "encoded", request.getName(), null, RoleName.ROLE_USER))
 			.thenReturn(user);
 		when(authMapper.toSignupResponse(user, RoleName.ROLE_USER)).thenReturn(signupResponse);
 
@@ -118,7 +118,7 @@ class SignUpServiceTest {
 		SignupRequest request = new SignupRequest();
 		request.setEmail("dev@test.com");
 		request.setPassword("password123");
-		request.setUsername("tester");
+		request.setName("tester");
 		request.setTurnstileToken("valid-token");
 
 		UserEntity user = UserEntity.create("dev@test.com", "encoded", "tester", null, UserStatus.PENDING);
@@ -128,7 +128,7 @@ class SignUpServiceTest {
 		when(turnstileService.verifyTokenSync("valid-token", "127.0.0.1")).thenReturn(true);
 		when(userDomainService.existsByEmail("dev@test.com")).thenReturn(false);
 		when(passwordEncoder.encode("password123")).thenReturn("encoded");
-		when(userDomainService.register("dev@test.com", "encoded", "tester", null, RoleName.ROLE_USER))
+		when(userDomainService.register("dev@test.com", "encoded", request.getName(), null, RoleName.ROLE_USER))
 			.thenReturn(user);
 		when(authMapper.toSignupResponse(user, RoleName.ROLE_USER)).thenReturn(signupResponse);
 
@@ -149,7 +149,7 @@ class SignUpServiceTest {
 		SignupRequest request = new SignupRequest();
 		request.setEmail("dup@test.com");
 		request.setPassword("password123");
-		request.setUsername("tester");
+		request.setName("tester");
 		request.setTurnstileToken("valid-token");
 
 		when(turnstileService.verifyTokenSync("valid-token", "127.0.0.1")).thenReturn(true);

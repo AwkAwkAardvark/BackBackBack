@@ -41,7 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "인증", description = "로그인/회원가입/토큰 재발급 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 public class AuthController {
 
 	private final AuthService authService;

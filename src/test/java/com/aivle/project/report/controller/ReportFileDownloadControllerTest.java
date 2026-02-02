@@ -47,7 +47,7 @@ class ReportFileDownloadControllerTest {
 		));
 
 		// when & then
-		mockMvc.perform(get("/reports/files/" + pdf.getId())
+		mockMvc.perform(get("/api/reports/files/" + pdf.getId())
 					.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
 				.andExpect(status().isFound())
 				.andExpect(header().string("Location", "http://example.com/report.pdf"));
@@ -57,7 +57,7 @@ class ReportFileDownloadControllerTest {
 	@DisplayName("보고서 PDF 다운로드는 인증이 없으면 401을 반환한다")
 	void downloadReportPdf_unauthorized() throws Exception {
 		// when & then
-		mockMvc.perform(get("/reports/files/1"))
+		mockMvc.perform(get("/api/reports/files/1"))
 			.andExpect(status().isUnauthorized());
 	}
 
@@ -65,7 +65,7 @@ class ReportFileDownloadControllerTest {
 	@DisplayName("보고서 PDF 다운로드는 ROLE_ADMIN만으로는 403을 반환한다")
 	void downloadReportPdf_forbiddenForAdminOnly() throws Exception {
 		// when & then
-		mockMvc.perform(get("/reports/files/1")
+		mockMvc.perform(get("/api/reports/files/1")
 				.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
 			.andExpect(status().isForbidden());
 	}

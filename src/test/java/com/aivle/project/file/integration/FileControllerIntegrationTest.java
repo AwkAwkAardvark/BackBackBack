@@ -81,7 +81,7 @@ class FileControllerIntegrationTest {
 		);
 
 		// when
-		mockMvc.perform(multipart("/posts/{postId}/files", post.getId())
+		mockMvc.perform(multipart("/api/posts/{postId}/files", post.getId())
 				.file(first)
 				.file(second)
 				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString()))))

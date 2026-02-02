@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @Tag(name = "보고서 지표", description = "보고서 PDF 다운로드")
 @Controller
 @RequiredArgsConstructor
-@RequestMapping("/reports/files")
+@RequestMapping("/api/reports/files")
 public class ReportFileDownloadController {
 
 	private final FilesRepository filesRepository;

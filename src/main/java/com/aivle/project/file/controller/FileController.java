@@ -30,7 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Tag(name = "파일", description = "파일 업로드/목록 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/posts")
+@RequestMapping("/api/posts")
 public class FileController {
 
 	private final FileService fileService;

@@ -64,7 +64,7 @@ class PostControllerIntegrationTest {
 		}
 
 		// when: 2페이지(5개씩) 조회
-		MvcResult result = mockMvc.perform(get("/posts")
+		MvcResult result = mockMvc.perform(get("/api/posts")
 				.param("page", "2")
 				.param("size", "5")
 				.param("sortBy", "createdAt")
@@ -102,7 +102,7 @@ class PostControllerIntegrationTest {
 		request.setContent("내용");
 
 		// when: JWT subject로 게시글 생성 요청
-		MvcResult result = mockMvc.perform(post("/posts")
+		MvcResult result = mockMvc.perform(post("/api/posts")
 				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString())))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
@@ -135,7 +135,7 @@ class PostControllerIntegrationTest {
 		request.setContent("수정 내용");
 
 		// when: JWT subject로 게시글 수정 요청
-		MvcResult result = mockMvc.perform(patch("/posts/{postId}", post.getId())
+		MvcResult result = mockMvc.perform(patch("/api/posts/{postId}", post.getId())
 				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString())))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
@@ -162,7 +162,7 @@ class PostControllerIntegrationTest {
 		PostsEntity post = persistPost(user, category, "삭제 제목", "삭제 내용");
 
 		// when: JWT subject로 삭제 요청
-		mockMvc.perform(delete("/posts/{postId}", post.getId())
+		mockMvc.perform(delete("/api/posts/{postId}", post.getId())
 				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString()))))
 			.andExpect(status().isOk());
 
@@ -182,7 +182,7 @@ class PostControllerIntegrationTest {
 		request.setContent("내용");
 
 		// when & then: 토큰 없이 요청하면 401 응답
-		mockMvc.perform(post("/posts")
+		mockMvc.perform(post("/api/posts")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andExpect(status().isUnauthorized());
@@ -199,7 +199,7 @@ class PostControllerIntegrationTest {
 		request.setContent("내용");
 
 		// when: 비어 있는 subject로 요청
-		MvcResult result = mockMvc.perform(post("/posts")
+		MvcResult result = mockMvc.perform(post("/api/posts")
 				.with(jwt().jwt(jwt -> jwt.subject("")))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
@@ -226,7 +226,7 @@ class PostControllerIntegrationTest {
 		request.setContent("내용");
 
 		// when: 잘못된 UUID subject로 요청
-		MvcResult result = mockMvc.perform(post("/posts")
+		MvcResult result = mockMvc.perform(post("/api/posts")
 				.with(jwt().jwt(jwt -> jwt.subject("not-a-uuid")))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
@@ -255,7 +255,7 @@ class PostControllerIntegrationTest {
 		request.setContent("수정 내용");
 
 		// when: 잘못된 UUID subject로 수정 요청
-		MvcResult result = mockMvc.perform(patch("/posts/{postId}", post.getId())
+		MvcResult result = mockMvc.perform(patch("/api/posts/{postId}", post.getId())
 				.with(jwt().jwt(jwt -> jwt.subject("not-a-uuid")))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
@@ -284,7 +284,7 @@ class PostControllerIntegrationTest {
 		request.setContent("수정 내용");
 
 		// when: 비어 있는 subject로 수정 요청
-		MvcResult result = mockMvc.perform(patch("/posts/{postId}", post.getId())
+		MvcResult result = mockMvc.perform(patch("/api/posts/{postId}", post.getId())
 				.with(jwt().jwt(jwt -> jwt.subject("")))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
@@ -309,7 +309,7 @@ class PostControllerIntegrationTest {
 		PostsEntity post = persistPost(user, category, "삭제 제목", "삭제 내용");
 
 		// when: 비어 있는 subject로 삭제 요청
-		MvcResult result = mockMvc.perform(delete("/posts/{postId}", post.getId())
+		MvcResult result = mockMvc.perform(delete("/api/posts/{postId}", post.getId())
 				.with(jwt().jwt(jwt -> jwt.subject(""))))
 			.andExpect(status().isBadRequest())
 			.andReturn();
@@ -332,7 +332,7 @@ class PostControllerIntegrationTest {
 		PostsEntity post = persistPost(user, category, "삭제 제목", "삭제 내용");
 
 		// when: 잘못된 UUID subject로 삭제 요청
-		MvcResult result = mockMvc.perform(delete("/posts/{postId}", post.getId())
+		MvcResult result = mockMvc.perform(delete("/api/posts/{postId}", post.getId())
 				.with(jwt().jwt(jwt -> jwt.subject("not-a-uuid"))))
 			.andExpect(status().isBadRequest())
 			.andReturn();

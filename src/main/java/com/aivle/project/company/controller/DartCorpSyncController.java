@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "기업 동기화", description = "DART 기업 목록 동기화 배치 실행")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/admin/dart/corp-sync")
+@RequestMapping("/api/admin/dart/corp-sync")
 public class DartCorpSyncController {
 
 	private final DartCorpCodeJobService jobService;

@@ -46,7 +46,7 @@ class CompanySearchControllerTest {
 		));
 
 		// when & then
-		mockMvc.perform(get("/companies/search")
+		mockMvc.perform(get("/api/companies/search")
 					.param("keyword", "테스트")
 					.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
 				.andExpect(status().isOk())
@@ -59,7 +59,7 @@ class CompanySearchControllerTest {
 	@DisplayName("기업명 검색은 인증이 없으면 401을 반환한다")
 	void searchCompanies_unauthorized() throws Exception {
 		// when & then
-		mockMvc.perform(get("/companies/search")
+		mockMvc.perform(get("/api/companies/search")
 				.param("keyword", "테스트"))
 			.andExpect(status().isUnauthorized());
 	}
@@ -68,7 +68,7 @@ class CompanySearchControllerTest {
 	@DisplayName("기업명 검색은 ROLE_ADMIN만으로는 403을 반환한다")
 	void searchCompanies_forbiddenForAdminOnly() throws Exception {
 		// when & then
-		mockMvc.perform(get("/companies/search")
+		mockMvc.perform(get("/api/companies/search")
 				.param("keyword", "테스트")
 				.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
 			.andExpect(status().isForbidden());

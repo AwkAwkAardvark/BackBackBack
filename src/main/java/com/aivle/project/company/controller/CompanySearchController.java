@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "기업", description = "기업 검색")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/companies")
+@RequestMapping("/api/companies")
 public class CompanySearchController {
 
 	private final CompanySearchService companySearchService;

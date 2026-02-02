@@ -69,7 +69,7 @@ class FileControllerStubStorageTest {
 		);
 
 		// when
-		mockMvc.perform(multipart("/posts/{postId}/files", post.getId())
+		mockMvc.perform(multipart("/api/posts/{postId}/files", post.getId())
 				.file(file)
 				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString()))))
 			.andExpect(status().isCreated());
