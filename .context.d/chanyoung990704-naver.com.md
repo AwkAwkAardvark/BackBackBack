@@ -6,6 +6,11 @@
 - email: chanyoung990704@naver.com
 
 ## 2. Recent Notes (최근 메모)
+- 2026-02-02 | 작업: 보고서 PDF 다운로드 API USER 권한 전환 3차 | 결과: `/reports/files/{id}` 경로로 이관하고 ROLE_USER 전용 보안 규칙, 다운로드 URL 경로 반영, 401/403/302 테스트 추가 | 이슈: 없음
+- 2026-02-02 | 작업: 보고서 지표 조회 API USER 권한 전환 2차 | 결과: `/reports/metrics/*` 경로로 이관하고 ROLE_USER 전용 보안 규칙 및 grouped/predict-latest 401/403/200 테스트 추가 | 이슈: 없음
+- 2026-02-02 | 작업: 기업 검색 API USER 권한 전환 1차 | 결과: `/admin/companies/search`를 `/companies/search`로 변경하고 ROLE_USER 전용 보안 규칙 및 401/403/200 테스트 추가 | 이슈: 없음
+- 2026-02-02 | 작업: 이메일 인증 JSON 응답 모드 정비 | 결과: redirect=false에서 status/message JSON 응답을 반환하도록 DTO 추가 및 WebMvc 테스트 보강 | 이슈: 없음
+- 2026-02-02 | 작업: 이메일 인증 리다이렉트 정책 강화 | 결과: verify-email에 status 매핑(success/expired/invalid/already_verified/error), returnUrl 화이트리스트 검증, redirect=true 302 처리 및 WebMvc 테스트 보강 | 이슈: 없음
 - 2026-02-01 | 작업: favicon 요청 처리 추가 | 결과: favicon 컨트롤러 및 테스트 추가로 예외 로그 제거 | 이슈: MockBean deprecated 경고
 - 2026-02-01 | 작업: dev 카테고리 API 통합 | 결과: DevCategoryController 제거 후 DevConsoleController로 통합, dev 전용 테스트 추가 | 이슈: MockBean deprecated 경고
 - 2026-02-01 | 작업: dev 인증 콘솔 컨트롤러 통합 | 결과: AuthConsoleController 제거 후 DevConsoleController로 통합 | 이슈: 없음

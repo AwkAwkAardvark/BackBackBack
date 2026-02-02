@@ -1,11 +1,13 @@
 package com.aivle.project.auth.controller;
 
+import com.aivle.project.auth.dto.EmailVerificationResultResponse;
 import com.aivle.project.user.service.EmailVerificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,28 +46,47 @@ public class EmailVerificationController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "인증 실패"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<String> verifyEmail(
+    public ResponseEntity<?> verifyEmail(
         @Parameter(description = "이메일 인증 토큰", example = "a1b2c3d4")
         @RequestParam String token,
         @Parameter(description = "프론트 리다이렉트 여부", example = "true")
-        @RequestParam(required = false, defaultValue = "false") boolean redirect
+        @RequestParam(required = false, defaultValue = "false") boolean redirect,
+        @Parameter(description = "인증 결과를 전달받을 프론트 복귀 URL", example = "https://front.example.com/auth/signup")
+        @RequestParam(required = false) String returnUrl
     ) {
         try {
             emailVerificationService.verifyEmail(token);
             if (redirect) {
                 return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(buildRedirectUrl("success", null)))
+                    .location(URI.create(buildRedirectUrl(VerificationRedirectStatus.SUCCESS, returnUrl)))
                     .build();
             }
-            return ResponseEntity.ok("이메일 인증이 완료되었습니다.");
+            return ResponseEntity.ok(new EmailVerificationResultResponse(
+                VerificationRedirectStatus.SUCCESS.value,
+                "이메일 인증이 완료되었습니다."
+            ));
         } catch (IllegalArgumentException e) {
             log.warn("이메일 인증 실패: {}", e.getMessage());
+            VerificationRedirectStatus status = mapStatus(e.getMessage());
             if (redirect) {
                 return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(buildRedirectUrl("fail", mapReason(e.getMessage()))))
+                    .location(URI.create(buildRedirectUrl(status, returnUrl)))
                     .build();
             }
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(new EmailVerificationResultResponse(status.value, e.getMessage()));
+        } catch (Exception e) {
+            log.error("이메일 인증 처리 중 서버 오류", e);
+            if (redirect) {
+                return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(buildRedirectUrl(VerificationRedirectStatus.ERROR, returnUrl)))
+                    .build();
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                new EmailVerificationResultResponse(
+                    VerificationRedirectStatus.ERROR.value,
+                    "이메일 인증 처리 중 오류가 발생했습니다."
+                )
+            );
         }
     }
 
@@ -92,33 +113,121 @@ public class EmailVerificationController {
         }
     }
 
-    private String buildRedirectUrl(String status, String reason) {
+    private String buildRedirectUrl(VerificationRedirectStatus status, String returnUrl) {
+        String redirectTarget = resolveReturnUrl(returnUrl).orElseGet(this::defaultRedirectPath);
+        return UriComponentsBuilder.fromUriString(redirectTarget)
+            .queryParam("status", status.value)
+            .toUriString();
+    }
+
+    private Optional<String> resolveReturnUrl(String returnUrl) {
+        if (!StringUtils.hasText(returnUrl)) {
+            return Optional.empty();
+        }
+
+        try {
+            String normalizedBaseUrl = normalizedBaseUrl();
+            URI baseUri = URI.create(normalizedBaseUrl);
+            URI requestUri = URI.create(returnUrl);
+
+            URI resolvedUri;
+            if (requestUri.isAbsolute()) {
+                resolvedUri = requestUri;
+            } else {
+                // 상대 경로는 프론트 기본 URL 하위 경로로 제한한다.
+                if (!returnUrl.startsWith("/")) {
+                    return Optional.empty();
+                }
+                resolvedUri = baseUri.resolve(returnUrl);
+            }
+
+            if (!sameOrigin(baseUri, resolvedUri)) {
+                return Optional.empty();
+            }
+            if (!isSubPath(baseUri, resolvedUri)) {
+                return Optional.empty();
+            }
+            return Optional.of(resolvedUri.toString());
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
+
+    private String defaultRedirectPath() {
+        return UriComponentsBuilder.fromUriString(normalizedBaseUrl())
+            .path("/auth/verify-email")
+            .toUriString();
+    }
+
+    private String normalizedBaseUrl() {
         String baseUrl = StringUtils.hasText(redirectBaseUrl)
             ? redirectBaseUrl
             : ServletUriComponentsBuilder.fromCurrentContextPath().toUriString();
-        String normalizedBaseUrl = baseUrl.endsWith("/")
+        return baseUrl.endsWith("/")
             ? baseUrl.substring(0, baseUrl.length() - 1)
             : baseUrl;
-
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(normalizedBaseUrl)
-            .path("/auth/verify-email")
-            .queryParam("status", status);
-        if (StringUtils.hasText(reason)) {
-            builder.queryParam("reason", reason);
-        }
-        return builder.toUriString();
     }
 
-    private String mapReason(String message) {
+    private boolean sameOrigin(URI baseUri, URI targetUri) {
+        int basePort = baseUri.getPort() == -1 ? defaultPort(baseUri.getScheme()) : baseUri.getPort();
+        int targetPort = targetUri.getPort() == -1 ? defaultPort(targetUri.getScheme()) : targetUri.getPort();
+        return safeEquals(baseUri.getScheme(), targetUri.getScheme())
+            && safeEquals(baseUri.getHost(), targetUri.getHost())
+            && basePort == targetPort;
+    }
+
+    private boolean isSubPath(URI baseUri, URI targetUri) {
+        String basePath = normalizedPath(baseUri.getPath());
+        String targetPath = normalizedPath(targetUri.getPath());
+        return targetPath.equals(basePath) || targetPath.startsWith(basePath + "/");
+    }
+
+    private String normalizedPath(String path) {
+        if (!StringUtils.hasText(path) || "/".equals(path)) {
+            return "";
+        }
+        String normalized = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+        return normalized.startsWith("/") ? normalized : "/" + normalized;
+    }
+
+    private int defaultPort(String scheme) {
+        if ("https".equalsIgnoreCase(scheme)) {
+            return 443;
+        }
+        if ("http".equalsIgnoreCase(scheme)) {
+            return 80;
+        }
+        return -1;
+    }
+
+    private boolean safeEquals(String left, String right) {
+        return left != null && left.equalsIgnoreCase(right);
+    }
+
+    private VerificationRedirectStatus mapStatus(String message) {
         if (message == null) {
-            return "invalid";
+            return VerificationRedirectStatus.INVALID;
         }
         if (message.contains("만료")) {
-            return "expired";
+            return VerificationRedirectStatus.EXPIRED;
         }
         if (message.contains("이미")) {
-            return "already";
+            return VerificationRedirectStatus.ALREADY_VERIFIED;
         }
-        return "invalid";
+        return VerificationRedirectStatus.INVALID;
+    }
+
+    private enum VerificationRedirectStatus {
+        SUCCESS("success"),
+        EXPIRED("expired"),
+        INVALID("invalid"),
+        ALREADY_VERIFIED("already_verified"),
+        ERROR("error");
+
+        private final String value;
+
+        VerificationRedirectStatus(String value) {
+            this.value = value;
+        }
     }
 }

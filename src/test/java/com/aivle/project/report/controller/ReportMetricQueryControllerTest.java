@@ -68,7 +68,7 @@ class ReportMetricQueryControllerTest {
 	private FilesRepository filesRepository;
 
 	@Test
-	@DisplayName("관리자 API로 분기별 그룹 지표를 조회한다")
+	@DisplayName("ROLE_USER로 분기별 그룹 지표를 조회한다")
 	void fetchGroupedMetrics() throws Exception {
 		// given
 		CompaniesEntity company = companiesRepository.save(CompaniesEntity.create(
@@ -116,19 +116,42 @@ class ReportMetricQueryControllerTest {
 		));
 
 		// when & then
-		mockMvc.perform(get("/admin/reports/metrics/grouped")
+			mockMvc.perform(get("/reports/metrics/grouped")
+					.param("stockCode", "000020")
+					.param("fromQuarterKey", "20244")
+					.param("toQuarterKey", "20253")
+					.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.stockCode").value("000020"))
+				.andExpect(jsonPath("$.data.quarters.length()").value(2));
+	}
+
+	@Test
+	@DisplayName("분기별 그룹 지표 조회는 인증이 없으면 401을 반환한다")
+	void fetchGroupedMetrics_unauthorized() throws Exception {
+		// when & then
+		mockMvc.perform(get("/reports/metrics/grouped")
+				.param("stockCode", "000020")
+				.param("fromQuarterKey", "20244")
+				.param("toQuarterKey", "20253"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("분기별 그룹 지표 조회는 ROLE_ADMIN만으로는 403을 반환한다")
+	void fetchGroupedMetrics_forbiddenForAdminOnly() throws Exception {
+		// when & then
+		mockMvc.perform(get("/reports/metrics/grouped")
 				.param("stockCode", "000020")
 				.param("fromQuarterKey", "20244")
 				.param("toQuarterKey", "20253")
 				.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.success").value(true))
-			.andExpect(jsonPath("$.data.stockCode").value("000020"))
-			.andExpect(jsonPath("$.data.quarters.length()").value(2));
+			.andExpect(status().isForbidden());
 	}
 
 	@Test
-	@DisplayName("관리자 API로 최신 예측 지표와 PDF 정보를 조회한다")
+	@DisplayName("ROLE_USER로 최신 예측 지표와 PDF 정보를 조회한다")
 	void fetchLatestPredictMetrics() throws Exception {
 		// given
 		CompaniesEntity company = companiesRepository.save(CompaniesEntity.create(
@@ -172,15 +195,36 @@ class ReportMetricQueryControllerTest {
 		));
 
 		// when & then
-		mockMvc.perform(get("/admin/reports/metrics/predict-latest")
+			mockMvc.perform(get("/reports/metrics/predict-latest")
+					.param("stockCode", "000020")
+					.param("quarterKey", "20253")
+					.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.stockCode").value("000020"))
+			.andExpect(jsonPath("$.data.versionNo").value(1))
+				.andExpect(jsonPath("$.data.pdfFileId").value(pdf.getId()))
+				.andExpect(jsonPath("$.data.metrics.length()").value(1));
+	}
+
+	@Test
+	@DisplayName("최신 예측 지표 조회는 인증이 없으면 401을 반환한다")
+	void fetchLatestPredictMetrics_unauthorized() throws Exception {
+		// when & then
+		mockMvc.perform(get("/reports/metrics/predict-latest")
+				.param("stockCode", "000020")
+				.param("quarterKey", "20253"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("최신 예측 지표 조회는 ROLE_ADMIN만으로는 403을 반환한다")
+	void fetchLatestPredictMetrics_forbiddenForAdminOnly() throws Exception {
+		// when & then
+		mockMvc.perform(get("/reports/metrics/predict-latest")
 				.param("stockCode", "000020")
 				.param("quarterKey", "20253")
 				.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.success").value(true))
-			.andExpect(jsonPath("$.data.stockCode").value("000020"))
-			.andExpect(jsonPath("$.data.versionNo").value(1))
-			.andExpect(jsonPath("$.data.pdfFileId").value(pdf.getId()))
-			.andExpect(jsonPath("$.data.metrics.length()").value(1));
+			.andExpect(status().isForbidden());
 	}
 }

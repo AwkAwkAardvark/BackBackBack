@@ -98,7 +98,7 @@ public class CompanyReportMetricQueryService {
 		}
 
 		ReportPredictMetricRowProjection first = rows.get(0);
-		String downloadUrl = first.getPdfFileId() != null ? "/admin/reports/files/" + first.getPdfFileId() : null;
+			String downloadUrl = first.getPdfFileId() != null ? "/reports/files/" + first.getPdfFileId() : null;
 		List<ReportPredictMetricItemDto> metrics = rows.stream()
 			.map(reportMapper::toPredictItemDto)
 			.toList();

@@ -34,7 +34,7 @@ class CompanySearchControllerTest {
 	private CompaniesRepository companiesRepository;
 
 	@Test
-	@DisplayName("관리자 API로 기업명을 검색한다")
+	@DisplayName("ROLE_USER로 기업명을 검색한다")
 	void searchCompanies() throws Exception {
 		// given
 		companiesRepository.save(CompaniesEntity.create(
@@ -46,12 +46,31 @@ class CompanySearchControllerTest {
 		));
 
 		// when & then
-		mockMvc.perform(get("/admin/companies/search")
+		mockMvc.perform(get("/companies/search")
+					.param("keyword", "테스트")
+					.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.length()").value(1))
+				.andExpect(jsonPath("$.data[0].stockCode").value("000020"));
+	}
+
+	@Test
+	@DisplayName("기업명 검색은 인증이 없으면 401을 반환한다")
+	void searchCompanies_unauthorized() throws Exception {
+		// when & then
+		mockMvc.perform(get("/companies/search")
+				.param("keyword", "테스트"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("기업명 검색은 ROLE_ADMIN만으로는 403을 반환한다")
+	void searchCompanies_forbiddenForAdminOnly() throws Exception {
+		// when & then
+		mockMvc.perform(get("/companies/search")
 				.param("keyword", "테스트")
 				.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.success").value(true))
-			.andExpect(jsonPath("$.data.length()").value(1))
-			.andExpect(jsonPath("$.data[0].stockCode").value("000020"));
+			.andExpect(status().isForbidden());
 	}
 }

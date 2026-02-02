@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "보고서 지표", description = "보고서 지표 조회")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/admin/reports/metrics")
+@RequestMapping("/reports/metrics")
 public class ReportMetricQueryController {
 
 	private final CompanyReportMetricQueryService companyReportMetricQueryService;

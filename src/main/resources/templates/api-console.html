@@ -455,7 +455,7 @@
 				<div class="actions">
 					<button class="secondary" type="button" id="report-grouped-query">조회 실행</button>
 				</div>
-				<p class="footer-note">관리자 토큰(ROLE_ADMIN) 필요. GET /admin/reports/metrics/grouped</p>
+					<p class="footer-note">사용자 토큰(ROLE_USER) 필요. GET /reports/metrics/grouped</p>
 			</div>
 
 			<div class="card" style="animation-delay: 0.08s;">
@@ -918,7 +918,7 @@
 			}
 
 			try {
-				const url = `/admin/reports/metrics/grouped?stockCode=${encodeURIComponent(stockCode)}&fromQuarterKey=${fromQuarterKey}&toQuarterKey=${toQuarterKey}`;
+					const url = `/reports/metrics/grouped?stockCode=${encodeURIComponent(stockCode)}&fromQuarterKey=${fromQuarterKey}&toQuarterKey=${toQuarterKey}`;
 				const response = await apiFetch(url);
 				const data = await response.json();
 				setLog({ status: response.status, data });
@@ -973,7 +973,7 @@
 				return;
 			}
 			try {
-				const url = `/admin/companies/search?keyword=${encodeURIComponent(keyword)}`;
+					const url = `/companies/search?keyword=${encodeURIComponent(keyword)}`;
 				const response = await apiFetch(url);
 				const payload = await response.json();
 				if (!response.ok || !payload.success) {

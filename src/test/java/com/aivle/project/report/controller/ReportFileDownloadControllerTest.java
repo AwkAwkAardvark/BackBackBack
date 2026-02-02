@@ -34,7 +34,7 @@ class ReportFileDownloadControllerTest {
 	private FilesRepository filesRepository;
 
 	@Test
-	@DisplayName("관리자 보고서 PDF 다운로드는 외부 URL로 리다이렉트된다")
+	@DisplayName("ROLE_USER 보고서 PDF 다운로드는 외부 URL로 리다이렉트된다")
 	void downloadReportPdf_redirectsToStorageUrl() throws Exception {
 		// given
 		FilesEntity pdf = filesRepository.save(FilesEntity.create(
@@ -47,9 +47,26 @@ class ReportFileDownloadControllerTest {
 		));
 
 		// when & then
-		mockMvc.perform(get("/admin/reports/files/" + pdf.getId())
+		mockMvc.perform(get("/reports/files/" + pdf.getId())
+					.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+				.andExpect(status().isFound())
+				.andExpect(header().string("Location", "http://example.com/report.pdf"));
+	}
+
+	@Test
+	@DisplayName("보고서 PDF 다운로드는 인증이 없으면 401을 반환한다")
+	void downloadReportPdf_unauthorized() throws Exception {
+		// when & then
+		mockMvc.perform(get("/reports/files/1"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("보고서 PDF 다운로드는 ROLE_ADMIN만으로는 403을 반환한다")
+	void downloadReportPdf_forbiddenForAdminOnly() throws Exception {
+		// when & then
+		mockMvc.perform(get("/reports/files/1")
 				.with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
-			.andExpect(status().isFound())
-			.andExpect(header().string("Location", "http://example.com/report.pdf"));
+			.andExpect(status().isForbidden());
 	}
 }

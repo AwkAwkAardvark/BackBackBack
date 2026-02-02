@@ -99,6 +99,10 @@ public class SecurityConfig {
 				).permitAll();
 				authorize.requestMatchers(HttpMethod.GET, "/posts", "/posts/*", "/posts/*/comments", "/categories")
 					.permitAll();
+				authorize.requestMatchers(HttpMethod.GET, "/companies/search").hasRole("USER");
+				authorize.requestMatchers(HttpMethod.GET, "/reports/metrics/grouped", "/reports/metrics/predict-latest")
+					.hasRole("USER");
+				authorize.requestMatchers(HttpMethod.GET, "/reports/files/*").hasRole("USER");
 				if (isDevProfile()) {
 					authorize.requestMatchers("/dev/**").permitAll();
 				}

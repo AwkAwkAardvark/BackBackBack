@@ -23,12 +23,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
- * 보고서 PDF 다운로드 API (관리자 전용).
+ * 보고서 PDF 다운로드 API.
  */
 @Tag(name = "보고서 지표", description = "보고서 PDF 다운로드")
 @Controller
 @RequiredArgsConstructor
-@RequestMapping("/admin/reports/files")
+@RequestMapping("/reports/files")
 public class ReportFileDownloadController {
 
 	private final FilesRepository filesRepository;
