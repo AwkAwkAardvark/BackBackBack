@@ -28,7 +28,7 @@ public record ApiResponse<T>(
 		return new ApiResponse<>(true, null, null, OffsetDateTime.now(ZoneOffset.UTC).toString());
 	}
 
-	public static <T> ApiResponse<T> fail(ErrorResponse errorResponse) {
+	public static ApiResponse<Void> fail(ErrorResponse errorResponse) {
 		return new ApiResponse<>(false, null, errorResponse, errorResponse.timestamp());
 	}
 }

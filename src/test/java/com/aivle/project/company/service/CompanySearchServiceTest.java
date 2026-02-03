@@ -2,7 +2,7 @@ package com.aivle.project.company.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.aivle.project.company.dto.CompanySearchResponse;
+import com.aivle.project.company.dto.CompanySearchItemResponse;
 import com.aivle.project.company.entity.CompaniesEntity;
 import com.aivle.project.company.repository.CompaniesRepository;
 import java.time.LocalDate;
@@ -47,17 +47,17 @@ class CompanySearchServiceTest {
 			LocalDate.of(2025, 1, 1)
 		));
 
-		org.mockito.BDDMockito.given(companyMapper.toSearchResponse(org.mockito.ArgumentMatchers.any())).willAnswer(invocation -> {
+		org.mockito.BDDMockito.given(companyMapper.toSearchItemResponse(org.mockito.ArgumentMatchers.any())).willAnswer(invocation -> {
 			CompaniesEntity c = invocation.getArgument(0);
-			return new CompanySearchResponse(c.getId(), c.getCorpName(), c.getCorpEngName(), c.getStockCode());
+			return new CompanySearchItemResponse(c.getId(), c.getCorpName(), c.getStockCode(), null);
 		});
 
 		// when
-		List<CompanySearchResponse> result = companySearchService.search("test");
+		List<CompanySearchItemResponse> result = companySearchService.searchByName("test", null);
 
 		// then
 		assertThat(result).hasSize(1);
-		assertThat(result.get(0).corpName()).isEqualTo("테스트기업");
-		assertThat(result.get(0).stockCode()).isEqualTo("000020");
+		assertThat(result.get(0).name()).isEqualTo("테스트기업");
+		assertThat(result.get(0).code()).isEqualTo("000020");
 	}
 }

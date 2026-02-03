@@ -3,6 +3,8 @@ package com.aivle.project.company.repository;
 import com.aivle.project.company.entity.CompaniesEntity;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
@@ -15,5 +17,11 @@ public interface CompaniesRepository extends JpaRepository<CompaniesEntity, Long
 	List<CompaniesEntity> findTop20ByCorpNameContainingIgnoreCaseOrCorpEngNameContainingIgnoreCaseOrderByCorpNameAsc(
 		String corpName,
 		String corpEngName
+	);
+
+	Page<CompaniesEntity> findByCorpNameContainingIgnoreCaseOrCorpEngNameContainingIgnoreCase(
+		String corpName,
+		String corpEngName,
+		Pageable pageable
 	);
 }

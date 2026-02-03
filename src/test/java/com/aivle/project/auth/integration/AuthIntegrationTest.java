@@ -362,7 +362,7 @@ class AuthIntegrationTest {
 	@DisplayName("리프레시 토큰 없이 재발급 요청하면 공통 에러 응답을 반환한다")
 	void refresh_withoutToken_shouldReturnApiError() throws Exception {
 		// when
-		MvcResult result = mockMvc.perform(post("/auth/refresh"))
+		MvcResult result = mockMvc.perform(post("/api/auth/refresh"))
 			.andExpect(status().isUnauthorized())
 			.andReturn();
 

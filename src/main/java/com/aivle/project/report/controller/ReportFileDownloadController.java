@@ -40,7 +40,11 @@ public class ReportFileDownloadController {
 	@GetMapping("/{fileId}")
 	@Operation(summary = "보고서 PDF 다운로드", description = "보고서 PDF를 다운로드하거나 외부 URL로 리다이렉트합니다.")
 	public ResponseEntity<?> download(@PathVariable Long fileId) {
-		FilesEntity file = getReportPdf(fileId);
+		FilesEntity file = filesRepository.findById(fileId)
+			.orElseThrow(() -> new FileException(FileErrorCode.FILE_404_NOT_FOUND));
+		if (file.isDeleted() || file.getUsageType() != FileUsageType.REPORT_PDF) {
+			throw new FileException(FileErrorCode.FILE_404_NOT_FOUND);
+		}
 
 		String storageUrl = file.getStorageUrl();
 		if (storageUrl != null && storageUrl.startsWith("http")) {
@@ -77,9 +81,14 @@ public class ReportFileDownloadController {
 	}
 
 	@GetMapping("/{fileId}/url")
-	@Operation(summary = "보고서 PDF 다운로드 URL 조회", description = "보고서 PDF 다운로드 URL(프리사인드 포함)을 반환합니다.")
+	@Operation(summary = "보고서 PDF 다운로드 URL 조회", description = "보고서 PDF 다운로드 URL을 반환합니다.")
 	public ResponseEntity<ApiResponse<FileDownloadUrlResponse>> downloadUrl(@PathVariable Long fileId) {
-		FilesEntity file = getReportPdf(fileId);
+		FilesEntity file = filesRepository.findById(fileId)
+			.orElseThrow(() -> new FileException(FileErrorCode.FILE_404_NOT_FOUND));
+		if (file.isDeleted() || file.getUsageType() != FileUsageType.REPORT_PDF) {
+			throw new FileException(FileErrorCode.FILE_404_NOT_FOUND);
+		}
+
 		String resolvedUrl = resolveDownloadUrl(file, fileId);
 		if (!StringUtils.hasText(resolvedUrl)) {
 			throw new FileException(FileErrorCode.FILE_404_NOT_FOUND);
@@ -87,28 +96,19 @@ public class ReportFileDownloadController {
 		return ResponseEntity.ok(ApiResponse.ok(new FileDownloadUrlResponse(resolvedUrl)));
 	}
 
-	private FilesEntity getReportPdf(Long fileId) {
-		FilesEntity file = filesRepository.findById(fileId)
-			.orElseThrow(() -> new FileException(FileErrorCode.FILE_404_NOT_FOUND));
-		if (file.isDeleted() || file.getUsageType() != FileUsageType.REPORT_PDF) {
-			throw new FileException(FileErrorCode.FILE_404_NOT_FOUND);
-		}
-		return file;
-	}
-
 	private String resolveDownloadUrl(FilesEntity file, Long fileId) {
 		String storageUrl = file.getStorageUrl();
+		if (StringUtils.hasText(storageUrl) && storageUrl.startsWith("http")) {
+			return fileDownloadUrlResolver.resolve(file).orElse(storageUrl);
+		}
+		if (StringUtils.hasText(storageUrl) && storageUrl.startsWith("memory://")) {
+			return storageUrl;
+		}
 		if (!StringUtils.hasText(storageUrl)) {
 			return null;
 		}
-		if (storageUrl.startsWith("http")) {
-			return fileDownloadUrlResolver.resolve(file).orElse(storageUrl);
-		}
-		if (storageUrl.startsWith("memory://")) {
-			return storageUrl;
-		}
 		return ServletUriComponentsBuilder.fromCurrentContextPath()
-			.path("/reports/files/")
+			.path("/api/reports/files/")
 			.path(fileId.toString())
 			.toUriString();
 	}
