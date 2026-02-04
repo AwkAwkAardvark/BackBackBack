@@ -1,12 +1,9 @@
 package com.aivle.project.company.entity;
 
 import com.aivle.project.common.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.aivle.project.industry.entity.IndustryEntity;
+import jakarta.persistence.*;
+
 import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -39,6 +36,10 @@ public class CompaniesEntity extends BaseEntity {
 
 	@Column(name = "modify_date")
 	private LocalDate modifyDate;
+
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "industry_code")
+	private IndustryEntity industryName;
 
 	/**
 	 * 기업 엔티티 생성.

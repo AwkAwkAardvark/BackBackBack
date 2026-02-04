@@ -5,7 +5,6 @@ package com.aivle.project.company.dto;
  */
 public record CompanyKpiMiniResponse(
 	Double networkHealth,
-	Double annualRevenue,
-	Double reputationScore
+	Double annualRevenue
 ) {
 }

@@ -8,7 +8,6 @@ public record CompanySummaryResponse(
 	String name,
 	CompanySectorResponse sector,
 	double overallScore,
-	RiskLevel riskLevel,
 	String lastUpdatedAt,
 	CompanyKpiMiniResponse kpi
 ) {
