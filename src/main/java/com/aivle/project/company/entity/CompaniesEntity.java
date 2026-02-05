@@ -1,12 +1,9 @@
 package com.aivle.project.company.entity;
 
 import com.aivle.project.common.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.aivle.project.industry.entity.IndustryEntity;
+import jakarta.persistence.*;
+
 import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -40,6 +37,11 @@ public class CompaniesEntity extends BaseEntity {
 	@Column(name = "modify_date")
 	private LocalDate modifyDate;
 
+	//TODO : DB에서 industry_code 반영한 후 optional=false 적용해야함
+	@ManyToOne(fetch = FetchType.LAZY)//, optional = false)
+	@JoinColumn(name = "industry_code", referencedColumnName = "industry_code")
+	private IndustryEntity industryCode;
+
 	/**
 	 * 기업 엔티티 생성.
 	 */
@@ -48,7 +50,8 @@ public class CompaniesEntity extends BaseEntity {
 		String corpName,
 		String corpEngName,
 		String stockCode,
-		LocalDate modifyDate
+		LocalDate modifyDate,
+		IndustryEntity industryCode
 	) {
 		CompaniesEntity company = new CompaniesEntity();
 		company.corpCode = corpCode;
@@ -56,6 +59,20 @@ public class CompaniesEntity extends BaseEntity {
 		company.corpEngName = corpEngName;
 		company.stockCode = stockCode;
 		company.modifyDate = modifyDate;
+		company.industryCode = industryCode;
 		return company;
+	}
+
+	/**
+	 * 기업 엔티티 생성 (산업 코드 미지정).
+	 */
+	public static CompaniesEntity create(
+		String corpCode,
+		String corpName,
+		String corpEngName,
+		String stockCode,
+		LocalDate modifyDate
+	) {
+		return create(corpCode, corpName, corpEngName, stockCode, modifyDate, null);
 	}
 }
