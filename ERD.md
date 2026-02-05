@@ -19,6 +19,11 @@ DDL 원본은 아래 Flyway 마이그레이션 파일을 기준으로 관리합�
 ### companies
 - 기업 기본 정보
 - `corp_code`(UK), `stock_code`(UK)
+- `industry_code` → `industry_codes.industry_code` (NULL 허용)
+
+### industry_codes
+- 산업 코드(업종) 정의
+- `industry_code`(UK)
 
 ### users
 - 사용자 계정
@@ -137,7 +142,7 @@ DDL 원본은 아래 Flyway 마이그레이션 파일을 기준으로 관리합�
 ## 관계 요약 (텍스트)
 
 ```
-companies ── users ── posts ── comments
+industry_codes ── companies ── users ── posts ── comments
      │          │        ├── post_files ── files
      │          │        ├── post_tags ── tags
      │          │        └── post_likes
