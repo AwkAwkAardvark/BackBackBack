@@ -46,8 +46,13 @@ Currently, the codebase uses a flat `/api/posts` structure where the category is
 - [x] **SecurityConfig**: Update request matchers to protect `/api/admin/posts/**` with `hasRole('ADMIN')`.
 
 ### E. Cleanup & Deprecation
-- [ ] Delete existing `com.aivle.project.qna` package (Controller, Service, DTOs, Mapper).
-- [ ] Remove any specific references to `/api/qna` in frontend-facing documentation or tests.
+- [x] Delete existing `com.aivle.project.qna` package (Controller, Service, DTOs, Mapper).
+- [x] Remove any specific references to `/api/qna` in frontend-facing documentation or tests.
+
+### F. Generate Tests
+- [ ] Create unit tests for `PostService` (Board logic, Admin vs User).
+- [ ] Create integration tests for `PostController` and `AdminPostController`.
+- [ ] Verify security rules in `SecurityConfig` via WebMvcTests.
 
 ---
 
