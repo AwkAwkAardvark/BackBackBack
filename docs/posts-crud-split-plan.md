@@ -22,28 +22,28 @@ Currently, the codebase uses a flat `/api/posts` structure where the category is
 ## 2. Implementation Checklist
 
 ### A. Infrastructure & Data
-- [ ] Create Flyway migration `V16__seed_categories.sql` to seed `notices` (ID: 1) and `qna` (ID: 2).
-- [ ] Remove redundant `DevCategorySeeder.java` to prevent naming/logic conflicts in `dev` profile.
+- [x] Create Flyway migration `V16__seed_categories.sql` to seed `notices` (ID: 1) and `qna` (ID: 2).
+- [x] Remove redundant `DevCategorySeeder.java` to prevent naming/logic conflicts in `dev` profile.
 - [ ] Add `industry_code` column to `companies` table if not already present (verify V13 status).
 
 ### B. DTO Refactoring
-- [ ] Create `PostUserCreateRequest` / `PostUserUpdateRequest` (Remove `categoryId`).
-- [ ] Create `PostAdminCreateRequest` / `PostAdminUpdateRequest` (Add `isPinned`, `status`).
+- [x] Create `PostUserCreateRequest` / `PostUserUpdateRequest` (Remove `categoryId`).
+- [x] Create `PostAdminCreateRequest` / `PostAdminUpdateRequest` (Add `isPinned`, `status`).
 
 ### C. Domain & Service Layer
-- [ ] **PostsRepository:** Add methods to find by `categoryName` + `PostStatus` + `DeletedAtIsNull`.
-- [ ] **PostsEntity:** Update `update` method to support `isPinned` and `status` for admin use.
-- [ ] **PostService:**
-    - [ ] Refactor to use `categoryName` lookup.
-    - [ ] Implement `Admin` service methods (bypass ownership checks, full visibility).
-    - [ ] Enforce Board Logic:
+- [x] **PostsRepository:** Add methods to find by `categoryName` + `PostStatus` + `DeletedAtIsNull`.
+- [x] **PostsEntity:** Update `update` method to support `isPinned` and `status` for admin use.
+- [x] **PostService:**
+    - [x] Refactor to use `categoryName` lookup.
+    - [x] Implement `Admin` service methods (bypass ownership checks, full visibility).
+    - [x] Enforce Board Logic:
         - `notices`: User = Read-only (GET); Admin = Full CRUD.
         - `qna`: User = Full CRUD (Own posts only, including GET); Admin = Full CRUD (All posts).
 
 ### D. API Layer (Controllers)
-- [ ] **PostController (`/api/posts/{categoryName}`)**: Implement user-facing board logic.
-- [ ] **AdminPostController (`/api/admin/posts/{categoryName}`)**: Implement admin-facing management logic.
-- [ ] **SecurityConfig**: Update request matchers to protect `/api/admin/posts/**` with `hasRole('ADMIN')`.
+- [x] **PostController (`/api/posts/{categoryName}`)**: Implement user-facing board logic.
+- [x] **AdminPostController (`/api/admin/posts/{categoryName}`)**: Implement admin-facing management logic.
+- [x] **SecurityConfig**: Update request matchers to protect `/api/admin/posts/**` with `hasRole('ADMIN')`.
 
 ### E. Cleanup & Deprecation
 - [ ] Delete existing `com.aivle.project.qna` package (Controller, Service, DTOs, Mapper).
