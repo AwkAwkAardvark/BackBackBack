@@ -19,6 +19,7 @@ import com.aivle.project.post.entity.PostViewCountsEntity;
 import com.aivle.project.post.repository.PostViewCountsRepository;
 import com.aivle.project.post.repository.PostsRepository;
 import com.aivle.project.user.entity.UserEntity;
+import com.aivle.project.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class PostService {
 	private final PostsRepository postsRepository;
 	private final PostViewCountsRepository postViewCountsRepository;
 	private final CategoriesRepository categoriesRepository;
+	private final UserRepository userRepository;
 	private final com.aivle.project.post.mapper.PostMapper postMapper;
 
 	private static final String BOARD_NOTICES = "notices";
@@ -47,11 +49,12 @@ public class PostService {
 	public PageResponse<PostResponse> list(String categoryName, PageRequest pageRequest, UserEntity user) {
 		CategoriesEntity category = findCategoryByName(categoryName);
 		
-		// QnA 보드는 본인 글만 조회 가능
+		// QnA 보드는 본인 글만 조회 가능 (비로그인 접근 불가)
 		if (BOARD_QNA.equalsIgnoreCase(categoryName)) {
-			Long userId = requireUserId(user);
-			// TODO: Repository에 본인 글 필터링 메서드 추가 필요할 수 있음. 
-			// 현재는 단순 필터링 로직 우선 적용
+			if (user == null) {
+				throw new CommonException(CommonErrorCode.COMMON_403);
+			}
+			// TODO: Repository에서 본인 글만 조회하도록 쿼리 확장 권장
 		}
 
 		Page<PostsEntity> page = postsRepository.findAllByCategoryNameAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(
@@ -68,7 +71,10 @@ public class PostService {
 		PostsEntity post = findPostInBoard(postId, categoryName);
 		
 		if (BOARD_QNA.equalsIgnoreCase(categoryName)) {
-			validateOwner(post, requireUserId(user));
+			if (user == null) {
+				throw new CommonException(CommonErrorCode.COMMON_403);
+			}
+			validateOwner(post, user.getId());
 		}
 		
 		return postMapper.toResponse(post);
@@ -214,5 +220,22 @@ public class PostService {
 			throw new CommonException(CommonErrorCode.COMMON_403);
 		}
 		return user.getId();
+	}
+
+	private UserEntity getCurrentUserOrThrow() {
+		org.springframework.security.core.Authentication auth = 
+			org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+		if (auth == null || !auth.isAuthenticated()) {
+			throw new CommonException(CommonErrorCode.COMMON_403);
+		}
+		
+		Object principal = auth.getPrincipal();
+		if (!(principal instanceof org.springframework.security.oauth2.jwt.Jwt jwt)) {
+			throw new CommonException(CommonErrorCode.COMMON_403);
+		}
+
+		java.util.UUID userUuid = java.util.UUID.fromString(jwt.getSubject());
+		return userRepository.findByUuidAndDeletedAtIsNull(userUuid)
+			.orElseThrow(() -> new CommonException(CommonErrorCode.COMMON_404));
 	}
 }
