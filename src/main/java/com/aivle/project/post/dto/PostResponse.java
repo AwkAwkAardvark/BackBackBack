@@ -12,8 +12,8 @@ import java.time.LocalDateTime;
 public record PostResponse(
 	@Schema(description = "게시글 ID", example = "100")
 	Long id,
-	@Schema(description = "작성자 ID", example = "1")
-	Long userId,
+	@Schema(description = "작성자 성명", example = "홍길동")
+	String name,
 	@Schema(description = "카테고리 ID", example = "3")
 	Long categoryId,
 	@Schema(description = "제목", example = "첫 번째 게시글")
