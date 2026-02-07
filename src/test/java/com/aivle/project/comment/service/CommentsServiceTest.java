@@ -53,7 +53,6 @@ class CommentsServiceTest {
 
 		UserEntity user = mock(UserEntity.class);
 		given(user.getId()).willReturn(userId);
-		given(user.getName()).willReturn("홍길동");
 
 		PostsEntity post = mock(PostsEntity.class);
 		given(post.getId()).willReturn(postId);
@@ -98,7 +97,6 @@ class CommentsServiceTest {
 
 		UserEntity user = mock(UserEntity.class);
 		given(user.getId()).willReturn(userId);
-		given(user.getName()).willReturn("홍길동");
 
 		PostsEntity post = mock(PostsEntity.class);
 		given(post.getId()).willReturn(postId);
@@ -163,7 +161,6 @@ class CommentsServiceTest {
 
 		UserEntity user = mock(UserEntity.class);
 		given(user.getId()).willReturn(userId);
-		given(user.getName()).willReturn("홍길동");
 
 		CommentsEntity realComment = CommentsEntity.create(mock(PostsEntity.class), user, null, "원래 내용", 0, 0);
 		ReflectionTestUtils.setField(realComment, "id", commentId);

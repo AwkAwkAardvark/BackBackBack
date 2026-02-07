@@ -42,9 +42,9 @@ Replace the `userId` field (Long) with `name` (String) in the `PostResponse` DTO
     - [x] Add `assertThat(apiResponse.data().name()).isEqualTo("test-user")`.
 
 ### D. Verification
-- [ ] Verify build via `./gradlew classes`.
-- [ ] Run post-domain specific tests: `./gradlew test --tests "com.aivle.project.post.*"`.
-- [ ] Run full test suite to ensure no regressions.
+- [x] Verify build via `./gradlew classes`.
+- [x] Run post-domain specific tests: `./gradlew test --tests "com.aivle.project.post.*"`.
+- [x] Run full test suite to ensure no regressions.
 
 ---
 
