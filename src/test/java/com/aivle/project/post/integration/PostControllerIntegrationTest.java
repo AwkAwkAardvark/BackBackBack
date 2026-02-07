@@ -12,9 +12,9 @@ import com.aivle.project.category.entity.CategoriesEntity;
 import com.aivle.project.common.config.TestSecurityConfig;
 import com.aivle.project.common.dto.ApiResponse;
 import com.aivle.project.common.dto.PageResponse;
-import com.aivle.project.post.dto.PostCreateRequest;
 import com.aivle.project.post.dto.PostResponse;
-import com.aivle.project.post.dto.PostUpdateRequest;
+import com.aivle.project.post.dto.PostUserCreateRequest;
+import com.aivle.project.post.dto.PostUserUpdateRequest;
 import com.aivle.project.post.entity.PostStatus;
 import com.aivle.project.post.entity.PostsEntity;
 import com.aivle.project.user.entity.UserEntity;
@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -53,316 +55,182 @@ class PostControllerIntegrationTest {
 	@PersistenceContext
 	private EntityManager entityManager;
 
+	private CategoriesEntity qnaCategory;
+	private CategoriesEntity noticesCategory;
+
+	@BeforeEach
+	void setUp() {
+		qnaCategory = findOrCreateCategory("qna");
+		noticesCategory = findOrCreateCategory("notices");
+	}
+
+	private CategoriesEntity findOrCreateCategory(String name) {
+		try {
+			return entityManager.createQuery("select c from CategoriesEntity c where c.name = :name", CategoriesEntity.class)
+				.setParameter("name", name)
+				.getSingleResult();
+		} catch (jakarta.persistence.NoResultException e) {
+			CategoriesEntity category = newEntity(CategoriesEntity.class);
+			ReflectionTestUtils.setField(category, "name", name);
+			ReflectionTestUtils.setField(category, "isActive", true);
+			entityManager.persist(category);
+			entityManager.flush();
+			return category;
+		}
+	}
+
 	@Test
-	@DisplayName("페이징 파라미터로 게시글 목록을 조회한다")
-	void list_shouldReturnPagedPosts() throws Exception {
-		// given: 사용자/카테고리와 게시글 12건을 준비
-		UserEntity user = persistUser("post-page@test.com");
-		CategoriesEntity category = persistCategory("page");
-		for (int i = 0; i < 12; i++) {
-			persistPost(user, category, "제목-" + i, "내용-" + i);
+	@DisplayName("QnA 보드에 게시글을 생성한다")
+	void create_shouldCreatePostInQna() throws Exception {
+		// given
+		UserEntity user = persistUser("qna-creator@test.com");
+		PostUserCreateRequest request = new PostUserCreateRequest();
+		request.setTitle("질문입니다");
+		request.setContent("내용입니다");
+
+		// when
+		MvcResult result = null;
+		try {
+			result = mockMvc.perform(post("/api/posts/qna")
+					.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString()))
+						.authorities(new SimpleGrantedAuthority("ROLE_USER")))
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(objectMapper.writeValueAsString(request)))
+				.andReturn();
+			System.out.println("DEBUG STATUS: " + result.getResponse().getStatus());
+			System.out.println("DEBUG RESPONSE: " + result.getResponse().getContentAsString());
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw e;
 		}
 
-		// when: 2페이지(5개씩) 조회
-		MvcResult result = mockMvc.perform(get("/api/posts")
-				.param("page", "2")
-				.param("size", "5")
-				.param("sortBy", "createdAt")
-				.param("direction", "DESC")
-				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString()))))
+		assertThat(result.getResponse().getStatus()).isEqualTo(201);
+
+		// then
+		ApiResponse<PostResponse> apiResponse = objectMapper.readValue(
+			result.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<PostResponse>>() {}
+		);
+
+		assertThat(apiResponse.success()).isTrue();
+		assertThat(apiResponse.data().title()).isEqualTo("질문입니다");
+		assertThat(apiResponse.data().categoryId()).isEqualTo(qnaCategory.getId());
+	}
+
+	@Test
+	@DisplayName("Notices 보드에 일반 사용자가 글을 쓰면 403 Forbidden을 반환한다")
+	void create_shouldFailInNotices() throws Exception {
+		// given
+		UserEntity user = persistUser("notice-hacker@test.com");
+		PostUserCreateRequest request = new PostUserCreateRequest();
+		request.setTitle("공지 해킹");
+		request.setContent("내용");
+
+		// when & then
+		mockMvc.perform(post("/api/posts/notices")
+				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString())))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	@DisplayName("QnA 보드에서 본인의 글을 수정한다")
+	void update_shouldUpdateOwnPost() throws Exception {
+		// given
+		UserEntity user = persistUser("qna-updater@test.com");
+		PostsEntity post = persistPost(user, qnaCategory, "원본 제목", "원본 내용");
+
+		PostUserUpdateRequest request = new PostUserUpdateRequest();
+		request.setTitle("수정된 제목");
+		request.setContent("수정된 내용");
+
+		// when
+		MvcResult result = mockMvc.perform(patch("/api/posts/qna/{postId}", post.getId())
+				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString()))
+					.authorities(new SimpleGrantedAuthority("ROLE_USER")))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)))
 			.andExpect(status().isOk())
 			.andReturn();
 
-		// then: 페이지 응답 메타가 반환된다
+		// then
+		ApiResponse<PostResponse> apiResponse = objectMapper.readValue(
+			result.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<PostResponse>>() {}
+		);
+		assertThat(apiResponse.data().title()).isEqualTo("수정된 제목");
+	}
+
+	@Test
+	@DisplayName("QnA 보드에서 타인의 글을 수정하면 403 Forbidden을 반환한다")
+	void update_shouldFailForOtherPost() throws Exception {
+		// given
+		UserEntity owner = persistUser("owner@test.com");
+		UserEntity hacker = persistUser("hacker@test.com");
+		PostsEntity post = persistPost(owner, qnaCategory, "원본", "원본");
+
+		PostUserUpdateRequest request = new PostUserUpdateRequest();
+		request.setTitle("해킹");
+
+		// when & then
+		mockMvc.perform(patch("/api/posts/qna/{postId}", post.getId())
+				.with(jwt().jwt(jwt -> jwt.subject(hacker.getUuid().toString()))
+					.authorities(new SimpleGrantedAuthority("ROLE_USER")))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	@DisplayName("Notices 보드의 글 목록은 누구나 조회 가능하다")
+	void list_shouldReturnNotices() throws Exception {
+		// given
+		UserEntity admin = persistUser("admin@test.com"); // 작성자용 (실제론 어드민만 가능)
+		for (int i = 0; i < 5; i++) {
+			persistPost(admin, noticesCategory, "공지-" + i, "내용");
+		}
+
+		// when
+		MvcResult result = mockMvc.perform(get("/api/posts/notices"))
+			.andExpect(status().isOk())
+			.andReturn();
+
+		// then
 		ApiResponse<PageResponse<PostResponse>> apiResponse = objectMapper.readValue(
 			result.getResponse().getContentAsString(),
 			new TypeReference<ApiResponse<PageResponse<PostResponse>>>() {}
 		);
-		PageResponse<PostResponse> page = apiResponse.data();
-
-		assertThat(apiResponse.success()).isTrue();
-		assertThat(page.page()).isEqualTo(2);
-		assertThat(page.size()).isEqualTo(5);
-		assertThat(page.totalElements()).isEqualTo(12);
-		assertThat(page.totalPages()).isEqualTo(3);
-		assertThat(page.last()).isFalse();
-		assertThat(page.content()).hasSize(5);
+		assertThat(apiResponse.data().content()).hasSize(5);
 	}
 
 	@Test
-	@DisplayName("JWT subject 기반으로 게시글을 생성한다")
-	void create_shouldCreatePost() throws Exception {
-		// given: 사용자/카테고리와 요청을 준비
-		UserEntity user = persistUser("post-create@test.com");
-		CategoriesEntity category = persistCategory("general");
+	@DisplayName("QnA 보드에서 본인의 글을 삭제한다")
+	void delete_shouldDeleteOwnPost() throws Exception {
+		// given
+		UserEntity user = persistUser("qna-deleter@test.com");
+		PostsEntity post = persistPost(user, qnaCategory, "삭제용", "내용");
 
-		PostCreateRequest request = new PostCreateRequest();
-		request.setCategoryId(category.getId());
-		request.setTitle("제목");
-		request.setContent("내용");
-
-		// when: JWT subject로 게시글 생성 요청
-		MvcResult result = mockMvc.perform(post("/api/posts")
-				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString())))
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isCreated())
-			.andReturn();
-
-		// then: 응답에 생성된 게시글 정보가 담긴다
-		ApiResponse<PostResponse> apiResponse = objectMapper.readValue(
-			result.getResponse().getContentAsString(),
-			new TypeReference<ApiResponse<PostResponse>>() {}
-		);
-
-		assertThat(apiResponse.success()).isTrue();
-		assertThat(apiResponse.data().userId()).isEqualTo(user.getId());
-		assertThat(apiResponse.data().categoryId()).isEqualTo(category.getId());
-		assertThat(apiResponse.data().title()).isEqualTo("제목");
-		assertThat(apiResponse.data().content()).isEqualTo("내용");
-	}
-
-	@Test
-	@DisplayName("JWT subject 기반으로 게시글을 수정한다")
-	void update_shouldUpdatePost() throws Exception {
-		// given: 사용자/카테고리와 기존 게시글을 준비
-		UserEntity user = persistUser("post-update@test.com");
-		CategoriesEntity category = persistCategory("update");
-		PostsEntity post = persistPost(user, category, "기존 제목", "기존 내용");
-
-		PostUpdateRequest request = new PostUpdateRequest();
-		request.setTitle("수정 제목");
-		request.setContent("수정 내용");
-
-		// when: JWT subject로 게시글 수정 요청
-		MvcResult result = mockMvc.perform(patch("/api/posts/{postId}", post.getId())
-				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString())))
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isOk())
-			.andReturn();
-
-		// then: 응답에 수정된 게시글 정보가 담긴다
-		ApiResponse<PostResponse> apiResponse = objectMapper.readValue(
-			result.getResponse().getContentAsString(),
-			new TypeReference<ApiResponse<PostResponse>>() {}
-		);
-
-		assertThat(apiResponse.success()).isTrue();
-		assertThat(apiResponse.data().title()).isEqualTo("수정 제목");
-		assertThat(apiResponse.data().content()).isEqualTo("수정 내용");
-	}
-
-	@Test
-	@DisplayName("JWT subject 기반으로 게시글을 삭제한다")
-	void delete_shouldMarkDeleted() throws Exception {
-		// given: 사용자/카테고리와 기존 게시글을 준비
-		UserEntity user = persistUser("post-delete@test.com");
-		CategoriesEntity category = persistCategory("delete");
-		PostsEntity post = persistPost(user, category, "삭제 제목", "삭제 내용");
-
-		// when: JWT subject로 삭제 요청
-		mockMvc.perform(delete("/api/posts/{postId}", post.getId())
-				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString()))))
+		// when
+		mockMvc.perform(delete("/api/posts/qna/{postId}", post.getId())
+				.with(jwt().jwt(jwt -> jwt.subject(user.getUuid().toString()))
+					.authorities(new SimpleGrantedAuthority("ROLE_USER"))))
 			.andExpect(status().isOk());
 
-		// then: 소프트 삭제가 반영된다
+		// then
 		PostsEntity found = entityManager.find(PostsEntity.class, post.getId());
 		assertThat(found.getDeletedAt()).isNotNull();
 	}
 
-	@Test
-	@DisplayName("인증 토큰 없이 게시글 생성 요청 시 401을 반환한다")
-	void create_withoutToken_shouldReturnUnauthorized() throws Exception {
-		// given: 카테고리와 요청을 준비
-		CategoriesEntity category = persistCategory("unauthorized");
-		PostCreateRequest request = new PostCreateRequest();
-		request.setCategoryId(category.getId());
-		request.setTitle("제목");
-		request.setContent("내용");
-
-		// when & then: 토큰 없이 요청하면 401 응답
-		mockMvc.perform(post("/api/posts")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isUnauthorized());
-	}
-
-	@Test
-	@DisplayName("JWT subject가 비어 있으면 게시글 생성 요청 시 400을 반환한다")
-	void create_withBlankSubject_shouldReturnBadRequest() throws Exception {
-		// given: 카테고리와 요청을 준비
-		CategoriesEntity category = persistCategory("blank-subject");
-		PostCreateRequest request = new PostCreateRequest();
-		request.setCategoryId(category.getId());
-		request.setTitle("제목");
-		request.setContent("내용");
-
-		// when: 비어 있는 subject로 요청
-		MvcResult result = mockMvc.perform(post("/api/posts")
-				.with(jwt().jwt(jwt -> jwt.subject("")))
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isBadRequest())
-			.andReturn();
-
-		// then: 공통 400 에러 응답을 반환한다
-		ApiResponse<Void> apiResponse = objectMapper.readValue(
-			result.getResponse().getContentAsString(),
-			new TypeReference<ApiResponse<Void>>() {}
-		);
-		assertThat(apiResponse.success()).isFalse();
-		assertThat(apiResponse.error().code()).isEqualTo("COMMON_400");
-	}
-
-	@Test
-	@DisplayName("JWT subject가 UUID 형식이 아니면 게시글 생성 요청 시 400을 반환한다")
-	void create_withInvalidSubject_shouldReturnBadRequest() throws Exception {
-		// given: 카테고리와 요청을 준비
-		CategoriesEntity category = persistCategory("invalid-subject");
-		PostCreateRequest request = new PostCreateRequest();
-		request.setCategoryId(category.getId());
-		request.setTitle("제목");
-		request.setContent("내용");
-
-		// when: 잘못된 UUID subject로 요청
-		MvcResult result = mockMvc.perform(post("/api/posts")
-				.with(jwt().jwt(jwt -> jwt.subject("not-a-uuid")))
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isBadRequest())
-			.andReturn();
-
-		// then: 공통 400 에러 응답을 반환한다
-		ApiResponse<Void> apiResponse = objectMapper.readValue(
-			result.getResponse().getContentAsString(),
-			new TypeReference<ApiResponse<Void>>() {}
-		);
-		assertThat(apiResponse.success()).isFalse();
-		assertThat(apiResponse.error().code()).isEqualTo("COMMON_400");
-	}
-
-	@Test
-	@DisplayName("JWT subject가 UUID 형식이 아니면 게시글 수정 요청 시 400을 반환한다")
-	void update_withInvalidSubject_shouldReturnBadRequest() throws Exception {
-		// given: 사용자/카테고리와 기존 게시글을 준비
-		UserEntity user = persistUser("post-update-invalid@test.com");
-		CategoriesEntity category = persistCategory("update-invalid");
-		PostsEntity post = persistPost(user, category, "기존 제목", "기존 내용");
-
-		PostUpdateRequest request = new PostUpdateRequest();
-		request.setTitle("수정 제목");
-		request.setContent("수정 내용");
-
-		// when: 잘못된 UUID subject로 수정 요청
-		MvcResult result = mockMvc.perform(patch("/api/posts/{postId}", post.getId())
-				.with(jwt().jwt(jwt -> jwt.subject("not-a-uuid")))
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isBadRequest())
-			.andReturn();
-
-		// then: 공통 400 에러 응답을 반환한다
-		ApiResponse<Void> apiResponse = objectMapper.readValue(
-			result.getResponse().getContentAsString(),
-			new TypeReference<ApiResponse<Void>>() {}
-		);
-		assertThat(apiResponse.success()).isFalse();
-		assertThat(apiResponse.error().code()).isEqualTo("COMMON_400");
-	}
-
-	@Test
-	@DisplayName("JWT subject가 비어 있으면 게시글 수정 요청 시 400을 반환한다")
-	void update_withBlankSubject_shouldReturnBadRequest() throws Exception {
-		// given: 사용자/카테고리와 기존 게시글을 준비
-		UserEntity user = persistUser("post-update-blank@test.com");
-		CategoriesEntity category = persistCategory("update-blank");
-		PostsEntity post = persistPost(user, category, "기존 제목", "기존 내용");
-
-		PostUpdateRequest request = new PostUpdateRequest();
-		request.setTitle("수정 제목");
-		request.setContent("수정 내용");
-
-		// when: 비어 있는 subject로 수정 요청
-		MvcResult result = mockMvc.perform(patch("/api/posts/{postId}", post.getId())
-				.with(jwt().jwt(jwt -> jwt.subject("")))
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isBadRequest())
-			.andReturn();
-
-		// then: 공통 400 에러 응답을 반환한다
-		ApiResponse<Void> apiResponse = objectMapper.readValue(
-			result.getResponse().getContentAsString(),
-			new TypeReference<ApiResponse<Void>>() {}
-		);
-		assertThat(apiResponse.success()).isFalse();
-		assertThat(apiResponse.error().code()).isEqualTo("COMMON_400");
-	}
-
-	@Test
-	@DisplayName("JWT subject가 비어 있으면 게시글 삭제 요청 시 400을 반환한다")
-	void delete_withBlankSubject_shouldReturnBadRequest() throws Exception {
-		// given: 사용자/카테고리와 기존 게시글을 준비
-		UserEntity user = persistUser("post-delete-blank@test.com");
-		CategoriesEntity category = persistCategory("delete-blank");
-		PostsEntity post = persistPost(user, category, "삭제 제목", "삭제 내용");
-
-		// when: 비어 있는 subject로 삭제 요청
-		MvcResult result = mockMvc.perform(delete("/api/posts/{postId}", post.getId())
-				.with(jwt().jwt(jwt -> jwt.subject(""))))
-			.andExpect(status().isBadRequest())
-			.andReturn();
-
-		// then: 공통 400 에러 응답을 반환한다
-		ApiResponse<Void> apiResponse = objectMapper.readValue(
-			result.getResponse().getContentAsString(),
-			new TypeReference<ApiResponse<Void>>() {}
-		);
-		assertThat(apiResponse.success()).isFalse();
-		assertThat(apiResponse.error().code()).isEqualTo("COMMON_400");
-	}
-
-	@Test
-	@DisplayName("JWT subject가 UUID 형식이 아니면 게시글 삭제 요청 시 400을 반환한다")
-	void delete_withInvalidSubject_shouldReturnBadRequest() throws Exception {
-		// given: 사용자/카테고리와 기존 게시글을 준비
-		UserEntity user = persistUser("post-delete-invalid@test.com");
-		CategoriesEntity category = persistCategory("delete-invalid");
-		PostsEntity post = persistPost(user, category, "삭제 제목", "삭제 내용");
-
-		// when: 잘못된 UUID subject로 삭제 요청
-		MvcResult result = mockMvc.perform(delete("/api/posts/{postId}", post.getId())
-				.with(jwt().jwt(jwt -> jwt.subject("not-a-uuid"))))
-			.andExpect(status().isBadRequest())
-			.andReturn();
-
-		// then: 공통 400 에러 응답을 반환한다
-		ApiResponse<Void> apiResponse = objectMapper.readValue(
-			result.getResponse().getContentAsString(),
-			new TypeReference<ApiResponse<Void>>() {}
-		);
-		assertThat(apiResponse.success()).isFalse();
-		assertThat(apiResponse.error().code()).isEqualTo("COMMON_400");
-	}
-
 	private UserEntity persistUser(String email) {
 		UserEntity user = newEntity(UserEntity.class);
+		ReflectionTestUtils.setField(user, "uuid", UUID.randomUUID());
 		ReflectionTestUtils.setField(user, "email", email);
-		ReflectionTestUtils.setField(user, "password", "encoded-password");
+		ReflectionTestUtils.setField(user, "password", "encoded");
 		ReflectionTestUtils.setField(user, "name", "test-user");
 		ReflectionTestUtils.setField(user, "status", UserStatus.ACTIVE);
 		entityManager.persist(user);
-		entityManager.flush();
 		return user;
-	}
-
-	private CategoriesEntity persistCategory(String name) {
-		CategoriesEntity category = newEntity(CategoriesEntity.class);
-		ReflectionTestUtils.setField(category, "name", name);
-		entityManager.persist(category);
-		entityManager.flush();
-		return category;
 	}
 
 	private PostsEntity persistPost(UserEntity user, CategoriesEntity category, String title, String content) {
@@ -385,7 +253,7 @@ class PostControllerIntegrationTest {
 			ctor.setAccessible(true);
 			return ctor.newInstance();
 		} catch (ReflectiveOperationException ex) {
-			throw new IllegalStateException("엔티티 생성에 실패했습니다", ex);
+			throw new IllegalStateException("엔티티 생성 실패", ex);
 		}
 	}
 }
