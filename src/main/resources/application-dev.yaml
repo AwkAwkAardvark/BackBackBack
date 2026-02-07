@@ -17,7 +17,7 @@ spring:
     show-sql: true # 콘솔에 SQL 쿼리 출력 (개발 환경에서 유용)
   flyway:
     locations: classpath:db/migration
-    validate-on-migrate: true
+    validate-on-migrate: false
   test:
     database:
       replace: none
