@@ -34,12 +34,12 @@ Replace the `userId` field (Long) with `name` (String) in the `PostResponse` DTO
     - [x] Update mapping for comments.
 
 ### C. Test Refactoring
-- [ ] **PostServiceTest.java**:
-    - [ ] Update all `new PostResponse(...)` mock instantiations.
-    - [ ] Update assertions to check for name strings (e.g., "test-user") instead of IDs.
-- [ ] **PostControllerIntegrationTest.java**:
-    - [ ] Remove or update `assertThat(apiResponse.data().userId())`.
-    - [ ] Add `assertThat(apiResponse.data().name()).isEqualTo("test-user")`.
+- [x] **PostServiceTest.java**:
+    - [x] Update all `new PostResponse(...)` mock instantiations.
+    - [x] Update assertions to check for name strings (e.g., "test-user") instead of IDs.
+- [x] **PostControllerIntegrationTest.java**:
+    - [x] Remove or update `assertThat(apiResponse.data().userId())`.
+    - [x] Add `assertThat(apiResponse.data().name()).isEqualTo("test-user")`.
 
 ### D. Verification
 - [ ] Verify build via `./gradlew classes`.

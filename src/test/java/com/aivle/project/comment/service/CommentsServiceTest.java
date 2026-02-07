@@ -53,6 +53,7 @@ class CommentsServiceTest {
 
 		UserEntity user = mock(UserEntity.class);
 		given(user.getId()).willReturn(userId);
+		given(user.getName()).willReturn("홍길동");
 
 		PostsEntity post = mock(PostsEntity.class);
 		given(post.getId()).willReturn(postId);
@@ -67,7 +68,7 @@ class CommentsServiceTest {
 
 		given(commentMapper.toResponse(any(CommentsEntity.class))).willAnswer(invocation -> {
 			CommentsEntity c = invocation.getArgument(0);
-			return new CommentResponse(c.getId(), userId, postId, null, c.getContent(), c.getDepth(), c.getSequence(), null, null);
+			return new CommentResponse(c.getId(), "홍길동", postId, null, c.getContent(), c.getDepth(), c.getSequence(), null, null);
 		});
 
 		// when
@@ -75,6 +76,7 @@ class CommentsServiceTest {
 
 		// then
 		assertThat(response.id()).isEqualTo(100L);
+		assertThat(response.name()).isEqualTo("홍길동");
 		assertThat(response.content()).isEqualTo("첫 번째 댓글");
 		assertThat(response.depth()).isZero();
 		assertThat(response.sequence()).isZero(); // -1 + 1 = 0
@@ -96,6 +98,7 @@ class CommentsServiceTest {
 
 		UserEntity user = mock(UserEntity.class);
 		given(user.getId()).willReturn(userId);
+		given(user.getName()).willReturn("홍길동");
 
 		PostsEntity post = mock(PostsEntity.class);
 		given(post.getId()).willReturn(postId);
@@ -116,7 +119,7 @@ class CommentsServiceTest {
 
 		given(commentMapper.toResponse(any(CommentsEntity.class))).willAnswer(invocation -> {
 			CommentsEntity c = invocation.getArgument(0);
-			return new CommentResponse(c.getId(), userId, postId, parentId, c.getContent(), c.getDepth(), c.getSequence(), null, null);
+			return new CommentResponse(c.getId(), "홍길동", postId, parentId, c.getContent(), c.getDepth(), c.getSequence(), null, null);
 		});
 
 		// when
@@ -124,6 +127,7 @@ class CommentsServiceTest {
 
 		// then
 		assertThat(response.id()).isEqualTo(101L);
+		assertThat(response.name()).isEqualTo("홍길동");
 		assertThat(response.depth()).isEqualTo(1); // parent depth(0) + 1
 		assertThat(response.sequence()).isEqualTo(1); // max(0) + 1
 		assertThat(response.parentId()).isEqualTo(parentId);
@@ -159,6 +163,7 @@ class CommentsServiceTest {
 
 		UserEntity user = mock(UserEntity.class);
 		given(user.getId()).willReturn(userId);
+		given(user.getName()).willReturn("홍길동");
 
 		CommentsEntity realComment = CommentsEntity.create(mock(PostsEntity.class), user, null, "원래 내용", 0, 0);
 		ReflectionTestUtils.setField(realComment, "id", commentId);
@@ -166,7 +171,7 @@ class CommentsServiceTest {
 		given(commentsRepository.findById(commentId)).willReturn(Optional.of(realComment));
 		given(commentMapper.toResponse(any(CommentsEntity.class))).willAnswer(invocation -> {
 			CommentsEntity c = invocation.getArgument(0);
-			return new CommentResponse(c.getId(), userId, null, null, c.getContent(), c.getDepth(), c.getSequence(), null, null);
+			return new CommentResponse(c.getId(), "홍길동", null, null, c.getContent(), c.getDepth(), c.getSequence(), null, null);
 		});
 
 		// when
@@ -174,6 +179,7 @@ class CommentsServiceTest {
 
 		// then
 		assertThat(response.content()).isEqualTo("수정된 내용");
+		assertThat(response.name()).isEqualTo("홍길동");
 	}
 
 	@Test

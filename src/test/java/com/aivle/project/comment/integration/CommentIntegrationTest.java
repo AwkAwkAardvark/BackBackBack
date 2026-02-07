@@ -62,13 +62,13 @@ class CommentIntegrationTest {
 
 		CommentResponse root = responses.get(0);
 		assertThat(root.id()).isEqualTo(parentResponse.id());
-		assertThat(root.userId()).isEqualTo(commenter.getId());
+		assertThat(root.name()).isEqualTo("댓글러");
 		assertThat(root.depth()).isZero();
 
 		CommentResponse reply = responses.get(1);
 		assertThat(reply.id()).isEqualTo(childResponse.id());
 		assertThat(reply.parentId()).isEqualTo(parentResponse.id());
-		assertThat(reply.userId()).isEqualTo(writer.getId());
+		assertThat(reply.name()).isEqualTo("작성자");
 		assertThat(reply.depth()).isEqualTo(1);
 	}
 
