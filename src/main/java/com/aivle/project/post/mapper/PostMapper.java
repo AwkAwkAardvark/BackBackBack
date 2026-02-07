@@ -10,7 +10,7 @@ import org.mapstruct.MappingConstants;
 public interface PostMapper {
 
 	// 계산된 조회수 및 isPinned 필드를 응답 규격에 맞게 매핑한다.
-	@Mapping(target = "userId", source = "user.id")
+	@Mapping(target = "name", source = "user.name")
 	@Mapping(target = "categoryId", source = "category.id")
 	@Mapping(target = "viewCount", source = "viewCount")
 	@Mapping(target = "isPinned", source = "pinned")

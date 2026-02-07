@@ -28,10 +28,10 @@ Replace the `userId` field (Long) with `name` (String) in the `PostResponse` DTO
     - [x] Apply similar changes to replace `userId` with `name`.
 
 ### B. Mapping Logic
-- [ ] **PostMapper.java**:
-    - [ ] Update `@Mapping` source for `name` to `user.name`.
-- [ ] (If consistency applied) **CommentMapper.java**:
-    - [ ] Update mapping for comments.
+- [x] **PostMapper.java**:
+    - [x] Update `@Mapping` source for `name` to `user.name`.
+- [x] (If consistency applied) **CommentMapper.java**:
+    - [x] Update mapping for comments.
 
 ### C. Test Refactoring
 - [ ] **PostServiceTest.java**:
