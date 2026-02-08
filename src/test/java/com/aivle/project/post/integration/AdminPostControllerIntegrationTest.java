@@ -15,15 +15,19 @@ import com.aivle.project.common.dto.PageResponse;
 import com.aivle.project.post.dto.PostAdminCreateRequest;
 import com.aivle.project.post.dto.PostAdminUpdateRequest;
 import com.aivle.project.post.dto.PostResponse;
+import com.aivle.project.post.dto.QaReplyInput;
+import com.aivle.project.post.dto.QaReplyResponse;
 import com.aivle.project.post.entity.PostStatus;
 import com.aivle.project.post.entity.PostsEntity;
+import com.aivle.project.user.entity.RoleEntity;
+import com.aivle.project.user.entity.RoleName;
 import com.aivle.project.user.entity.UserEntity;
+import com.aivle.project.user.entity.UserRoleEntity;
 import com.aivle.project.user.entity.UserStatus;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -59,12 +63,15 @@ class AdminPostControllerIntegrationTest {
 	private CategoriesEntity qnaCategory;
 	private CategoriesEntity noticesCategory;
 	private UserEntity admin;
+	private RoleEntity adminRole;
 
 	@BeforeEach
 	void setUp() {
 		qnaCategory = findOrCreateCategory("qna");
 		noticesCategory = findOrCreateCategory("notices");
-		admin = persistUser("admin-controller@test.com");
+		
+		adminRole = findOrCreateRole(RoleName.ROLE_ADMIN);
+		admin = persistUser("admin-controller@test.com", adminRole);
 	}
 
 	private CategoriesEntity findOrCreateCategory(String name) {
@@ -79,6 +86,19 @@ class AdminPostControllerIntegrationTest {
 			entityManager.persist(category);
 			entityManager.flush();
 			return category;
+		}
+	}
+
+	private RoleEntity findOrCreateRole(RoleName name) {
+		try {
+			return entityManager.createQuery("select r from RoleEntity r where r.name = :name", RoleEntity.class)
+				.setParameter("name", name)
+				.getSingleResult();
+		} catch (jakarta.persistence.NoResultException e) {
+			RoleEntity role = new RoleEntity(name, "Admin Role");
+			entityManager.persist(role);
+			entityManager.flush();
+			return role;
 		}
 	}
 
@@ -116,7 +136,7 @@ class AdminPostControllerIntegrationTest {
 	@DisplayName("관리자는 타인의 QnA 게시글을 수정할 수 있다")
 	void update_shouldUpdateOtherPost() throws Exception {
 		// given
-		UserEntity otherUser = persistUser("other@test.com");
+		UserEntity otherUser = persistUser("other@test.com", null);
 		PostsEntity post = persistPost(otherUser, qnaCategory, "원본", "원본");
 
 		PostAdminUpdateRequest request = new PostAdminUpdateRequest();
@@ -145,7 +165,7 @@ class AdminPostControllerIntegrationTest {
 	@DisplayName("관리자는 타인의 게시글을 삭제할 수 있다")
 	void delete_shouldDeletePost() throws Exception {
 		// given
-		UserEntity otherUser = persistUser("to-delete@test.com");
+		UserEntity otherUser = persistUser("to-delete@test.com", null);
 		PostsEntity post = persistPost(otherUser, qnaCategory, "삭제대상", "내용");
 
 		// when
@@ -160,10 +180,67 @@ class AdminPostControllerIntegrationTest {
 	}
 
 	@Test
+	@DisplayName("관리자는 QnA 게시글에 답변을 작성할 수 있고, 이로 인해 상태가 answered로 변경된다")
+	void createReply_shouldSucceedAndSetStatus() throws Exception {
+		// given
+		UserEntity user = persistUser("asker@test.com", null);
+		PostsEntity post = persistPost(user, qnaCategory, "질문", "내용");
+		
+		QaReplyInput input = new QaReplyInput();
+		input.setContent("관리자 답변입니다.");
+
+		// 1. 초기 상태 확인 (pending)
+		MvcResult getResultBefore = mockMvc.perform(get("/api/admin/posts/qna/{postId}", post.getId())
+				.with(jwt().jwt(jwt -> jwt.subject(admin.getUuid().toString()))
+					.authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+			.andExpect(status().isOk())
+			.andReturn();
+			
+		PostResponse initialResponse = objectMapper.readValue(
+			getResultBefore.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<PostResponse>>() {}
+		).data();
+		assertThat(initialResponse.qnaStatus()).isEqualTo("pending");
+
+		// 2. 답변 작성
+		MvcResult replyResult = mockMvc.perform(post("/api/admin/posts/qna/{postId}/replies", post.getId())
+				.with(jwt().jwt(jwt -> jwt.subject(admin.getUuid().toString()))
+					.authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(input)))
+			.andExpect(status().isOk())
+			.andReturn();
+
+		ApiResponse<QaReplyResponse> replyResponse = objectMapper.readValue(
+			replyResult.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<QaReplyResponse>>() {}
+		);
+		assertThat(replyResponse.data().content()).isEqualTo("관리자 답변입니다.");
+		assertThat(replyResponse.data().postId()).isEqualTo(post.getId());
+
+		// 3. 상태 변경 확인 (answered)
+		// 영속성 컨텍스트 초기화 (mapper가 DB에서 댓글을 다시 읽어오도록)
+		entityManager.flush();
+		entityManager.clear();
+
+		MvcResult getResultAfter = mockMvc.perform(get("/api/admin/posts/qna/{postId}", post.getId())
+				.with(jwt().jwt(jwt -> jwt.subject(admin.getUuid().toString()))
+					.authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+			.andExpect(status().isOk())
+			.andReturn();
+			
+		PostResponse finalResponse = objectMapper.readValue(
+			getResultAfter.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<PostResponse>>() {}
+		).data();
+		assertThat(finalResponse.qnaStatus()).isEqualTo("answered");
+	}
+
+	@Test
 	@DisplayName("일반 사용자가 관리자 API에 접근하면 403을 반환한다")
 	void create_forbiddenForUser() throws Exception {
 		// given
-		UserEntity user = persistUser("user@test.com");
+		UserEntity user = persistUser("user@test.com", null);
 		PostAdminCreateRequest request = new PostAdminCreateRequest();
 		request.setTitle("권한없음");
 		request.setContent("내용");
@@ -177,7 +254,7 @@ class AdminPostControllerIntegrationTest {
 			.andExpect(status().isForbidden());
 	}
 
-	private UserEntity persistUser(String email) {
+	private UserEntity persistUser(String email, RoleEntity role) {
 		UserEntity user = newEntity(UserEntity.class);
 		ReflectionTestUtils.setField(user, "uuid", UUID.randomUUID());
 		ReflectionTestUtils.setField(user, "email", email);
@@ -185,6 +262,13 @@ class AdminPostControllerIntegrationTest {
 		ReflectionTestUtils.setField(user, "name", "admin-tester");
 		ReflectionTestUtils.setField(user, "status", UserStatus.ACTIVE);
 		entityManager.persist(user);
+		
+		if (role != null) {
+			UserRoleEntity userRole = new UserRoleEntity(user, role);
+			entityManager.persist(userRole);
+		}
+		
+		entityManager.flush();
 		return user;
 	}
 

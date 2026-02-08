@@ -91,7 +91,7 @@ class PostServiceTest {
 			ReflectionTestUtils.setField(p, "id", 100L);
 			return p;
 		});
-		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(100L, "user-1", 2L, "qna title", "qna content", 0, false, PostStatus.PUBLISHED, null, null));
+		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(100L, "user-1", 2L, "qna title", "qna content", 0, false, PostStatus.PUBLISHED, null, null, null));
 
 		// when
 		PostResponse response = postService.create("qna", user, request);
@@ -113,7 +113,7 @@ class PostServiceTest {
 
 		given(postsRepository.findByIdAndCategoryNameAndDeletedAtIsNull(100L, "qna"))
 			.willReturn(Optional.of(post));
-		given(postMapper.toResponse(post)).willReturn(new PostResponse(100L, "user-1", 2L, "updated", "content", 0, false, PostStatus.PUBLISHED, null, null));
+		given(postMapper.toResponse(post)).willReturn(new PostResponse(100L, "user-1", 2L, "updated", "content", 0, false, PostStatus.PUBLISHED, null, null, null));
 
 		// when
 		PostResponse response = postService.update("qna", user, 100L, request);
@@ -160,7 +160,7 @@ class PostServiceTest {
 			ReflectionTestUtils.setField(p, "id", 200L);
 			return p;
 		});
-		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(200L, "user-99", 1L, "notice", "content", 0, true, PostStatus.PUBLISHED, null, null));
+		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(200L, "user-99", 1L, "notice", "content", 0, true, PostStatus.PUBLISHED, null, null, null));
 
 		// when
 		PostResponse response = postService.createAdmin("notices", admin, request);
@@ -183,7 +183,7 @@ class PostServiceTest {
 
 		given(postsRepository.findByIdAndCategoryNameAndDeletedAtIsNull(100L, "qna"))
 			.willReturn(Optional.of(post));
-		given(postMapper.toResponse(post)).willReturn(new PostResponse(100L, "user-1", 2L, "admin updated", "content", 0, true, PostStatus.PUBLISHED, null, null));
+		given(postMapper.toResponse(post)).willReturn(new PostResponse(100L, "user-1", 2L, "admin updated", "content", 0, true, PostStatus.PUBLISHED, null, null, null));
 
 		// when
 		PostResponse response = postService.updateAdmin("qna", 100L, request);
