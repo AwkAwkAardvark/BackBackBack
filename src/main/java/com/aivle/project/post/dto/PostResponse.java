@@ -3,11 +3,13 @@ package com.aivle.project.post.dto;
 import com.aivle.project.post.entity.PostsEntity;
 import com.aivle.project.post.entity.PostStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
 import java.time.LocalDateTime;
 
 /**
  * 게시글 응답 DTO.
  */
+@Builder
 @Schema(description = "게시글 응답")
 public record PostResponse(
 	@Schema(description = "게시글 ID", example = "100")

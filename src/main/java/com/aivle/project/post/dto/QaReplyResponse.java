@@ -1,11 +1,13 @@
 package com.aivle.project.post.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
 import java.time.LocalDateTime;
 
 /**
  * QnA 관리자 답변 응답 DTO.
  */
+@Builder
 @Schema(description = "QnA 관리자 답변 응답")
 public record QaReplyResponse(
 	@Schema(description = "답변 ID", example = "10")
