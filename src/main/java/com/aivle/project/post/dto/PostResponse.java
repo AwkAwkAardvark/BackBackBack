@@ -26,6 +26,8 @@ public record PostResponse(
 	boolean isPinned,
 	@Schema(description = "상태", example = "ACTIVE")
 	PostStatus status,
+	@Schema(description = "QnA 상태 (pending, answered)", example = "pending")
+	String qnaStatus,
 	@Schema(description = "생성 일시", example = "2026-01-25T12:34:56")
 	LocalDateTime createdAt,
 	@Schema(description = "수정 일시", example = "2026-01-25T12:40:00")
