@@ -26,6 +26,7 @@ public class CommentsService {
 	private final CommentsRepository commentsRepository;
 	private final PostsRepository postsRepository;
 	private final com.aivle.project.comment.mapper.CommentMapper commentMapper;
+	private final com.aivle.project.post.mapper.PostMapper postMapper;
 
 	@Transactional(readOnly = true)
 	public List<CommentResponse> listByPost(Long postId) {
@@ -64,6 +65,34 @@ public class CommentsService {
 
 		CommentsEntity saved = commentsRepository.save(comment);
 		return commentMapper.toResponse(saved);
+	}
+
+	/**
+	 * [관리자] QnA 게시글에 대한 답변 작성.
+	 */
+	public com.aivle.project.post.dto.QaReplyResponse createAdminReply(UserEntity admin, Long postId, com.aivle.project.post.dto.QaReplyInput input) {
+		PostsEntity post = findPost(postId);
+		
+		// QnA 보드인지 확인 (선택적이지만 안전을 위해)
+		if (!"qna".equalsIgnoreCase(post.getCategory().getName())) {
+			throw new CommonException(CommonErrorCode.COMMON_400);
+		}
+
+		// 관리자 답변은 항상 최상위 댓글(depth 0)로 작성되거나, 비즈니스 요구에 따라 조정 가능.
+		// 여기서는 일반적인 '댓글' 형태로 저장하되 depth 0으로 생성.
+		int sequence = commentsRepository.findMaxSequenceByPostIdAndParentIsNull(post.getId()) + 1;
+
+		CommentsEntity comment = CommentsEntity.create(
+			post,
+			admin,
+			null, // 부모 없음
+			input.getContent().trim(),
+			0,    // depth 0
+			sequence
+		);
+
+		CommentsEntity saved = commentsRepository.save(comment);
+		return postMapper.toQaReplyResponse(saved);
 	}
 
 	public CommentResponse update(Long userId, Long commentId, CommentUpdateRequest request) {

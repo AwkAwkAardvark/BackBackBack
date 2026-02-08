@@ -7,7 +7,10 @@ import com.aivle.project.common.security.CurrentUser;
 import com.aivle.project.post.dto.PostAdminCreateRequest;
 import com.aivle.project.post.dto.PostAdminUpdateRequest;
 import com.aivle.project.post.dto.PostResponse;
+import com.aivle.project.post.dto.QaReplyInput;
+import com.aivle.project.post.dto.QaReplyResponse;
 import com.aivle.project.post.service.PostService;
+import com.aivle.project.comment.service.CommentsService;
 import com.aivle.project.user.entity.UserEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -41,6 +44,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminPostController {
 
 	private final PostService postService;
+	private final CommentsService commentsService;
 
 	@GetMapping
 	@Operation(summary = "보드별 전체 게시글 조회 (관리자)", description = "관리자 권한으로 특정 보드의 모든 게시글(DRAFT, HIDDEN 포함)을 조회합니다.")
@@ -77,6 +81,20 @@ public class AdminPostController {
 	) {
 		return ResponseEntity.status(HttpStatus.CREATED)
 			.body(ApiResponse.ok(postService.createAdmin(categoryName, admin, request)));
+	}
+
+	@PostMapping("/{postId}/replies")
+	@Operation(summary = "QnA 답변 작성 (관리자)", description = "관리자 권한으로 QnA 게시글에 답변을 작성합니다.")
+	public ResponseEntity<ApiResponse<QaReplyResponse>> createReply(
+		@PathVariable String categoryName,
+		@PathVariable Long postId,
+		@CurrentUser UserEntity admin,
+		@Valid @RequestBody QaReplyInput input
+	) {
+		if (!"qna".equalsIgnoreCase(categoryName)) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+		}
+		return ResponseEntity.ok(ApiResponse.ok(commentsService.createAdminReply(admin, postId, input)));
 	}
 
 	@PatchMapping("/{postId}")

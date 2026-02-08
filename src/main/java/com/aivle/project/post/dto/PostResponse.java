@@ -3,11 +3,13 @@ package com.aivle.project.post.dto;
 import com.aivle.project.post.entity.PostsEntity;
 import com.aivle.project.post.entity.PostStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
 import java.time.LocalDateTime;
 
 /**
  * 게시글 응답 DTO.
  */
+@Builder
 @Schema(description = "게시글 응답")
 public record PostResponse(
 	@Schema(description = "게시글 ID", example = "100")
@@ -26,6 +28,8 @@ public record PostResponse(
 	boolean isPinned,
 	@Schema(description = "상태", example = "ACTIVE")
 	PostStatus status,
+	@Schema(description = "QnA 상태 (pending, answered)", example = "pending")
+	String qnaStatus,
 	@Schema(description = "생성 일시", example = "2026-01-25T12:34:56")
 	LocalDateTime createdAt,
 	@Schema(description = "수정 일시", example = "2026-01-25T12:40:00")
