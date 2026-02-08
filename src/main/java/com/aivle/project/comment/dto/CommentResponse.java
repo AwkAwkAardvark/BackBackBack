@@ -11,8 +11,8 @@ import java.time.LocalDateTime;
 public record CommentResponse(
 	@Schema(description = "댓글 ID", example = "10")
 	Long id,
-	@Schema(description = "작성자 ID", example = "1")
-	Long userId,
+	@Schema(description = "작성자 성명", example = "홍길동")
+	String name,
 	@Schema(description = "게시글 ID", example = "100")
 	Long postId,
 	@Schema(description = "부모 댓글 ID", example = "5")

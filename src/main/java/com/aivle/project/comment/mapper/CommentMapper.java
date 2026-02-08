@@ -10,7 +10,7 @@ import org.mapstruct.MappingConstants;
 public interface CommentMapper {
 
 	// 연관 엔티티의 식별자를 응답 필드로 평탄화한다.
-	@Mapping(target = "userId", source = "user.id")
+	@Mapping(target = "name", source = "user.name")
 	@Mapping(target = "postId", source = "post.id")
 	@Mapping(target = "parentId", source = "parent.id")
 	CommentResponse toResponse(CommentsEntity comment);

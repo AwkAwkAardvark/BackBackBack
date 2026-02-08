@@ -114,6 +114,7 @@ class PostControllerIntegrationTest {
 
 		assertThat(apiResponse.success()).isTrue();
 		assertThat(apiResponse.data().title()).isEqualTo("질문입니다");
+		assertThat(apiResponse.data().name()).isEqualTo("test-user");
 		assertThat(apiResponse.data().categoryId()).isEqualTo(qnaCategory.getId());
 	}
 

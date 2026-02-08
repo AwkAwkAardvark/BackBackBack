@@ -91,13 +91,14 @@ class PostServiceTest {
 			ReflectionTestUtils.setField(p, "id", 100L);
 			return p;
 		});
-		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(100L, 1L, 2L, "qna title", "qna content", 0, false, PostStatus.PUBLISHED, null, null));
+		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(100L, "user-1", 2L, "qna title", "qna content", 0, false, PostStatus.PUBLISHED, null, null));
 
 		// when
 		PostResponse response = postService.create("qna", user, request);
 
 		// then
 		assertThat(response.id()).isEqualTo(100L);
+		assertThat(response.name()).isEqualTo("user-1");
 		verify(postViewCountsRepository).save(any(PostViewCountsEntity.class));
 	}
 
@@ -112,13 +113,14 @@ class PostServiceTest {
 
 		given(postsRepository.findByIdAndCategoryNameAndDeletedAtIsNull(100L, "qna"))
 			.willReturn(Optional.of(post));
-		given(postMapper.toResponse(post)).willReturn(new PostResponse(100L, 1L, 2L, "updated", "content", 0, false, PostStatus.PUBLISHED, null, null));
+		given(postMapper.toResponse(post)).willReturn(new PostResponse(100L, "user-1", 2L, "updated", "content", 0, false, PostStatus.PUBLISHED, null, null));
 
 		// when
 		PostResponse response = postService.update("qna", user, 100L, request);
 
 		// then
 		assertThat(response.title()).isEqualTo("updated");
+		assertThat(response.name()).isEqualTo("user-1");
 	}
 
 	@Test
@@ -158,13 +160,14 @@ class PostServiceTest {
 			ReflectionTestUtils.setField(p, "id", 200L);
 			return p;
 		});
-		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(200L, 99L, 1L, "notice", "content", 0, true, PostStatus.PUBLISHED, null, null));
+		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(200L, "user-99", 1L, "notice", "content", 0, true, PostStatus.PUBLISHED, null, null));
 
 		// when
 		PostResponse response = postService.createAdmin("notices", admin, request);
 
 		// then
 		assertThat(response.id()).isEqualTo(200L);
+		assertThat(response.name()).isEqualTo("user-99");
 		assertThat(response.isPinned()).isTrue();
 	}
 
@@ -180,13 +183,14 @@ class PostServiceTest {
 
 		given(postsRepository.findByIdAndCategoryNameAndDeletedAtIsNull(100L, "qna"))
 			.willReturn(Optional.of(post));
-		given(postMapper.toResponse(post)).willReturn(new PostResponse(100L, 1L, 2L, "admin updated", "content", 0, true, PostStatus.PUBLISHED, null, null));
+		given(postMapper.toResponse(post)).willReturn(new PostResponse(100L, "user-1", 2L, "admin updated", "content", 0, true, PostStatus.PUBLISHED, null, null));
 
 		// when
 		PostResponse response = postService.updateAdmin("qna", 100L, request);
 
 		// then
 		assertThat(response.title()).isEqualTo("admin updated");
+		assertThat(response.name()).isEqualTo("user-1");
 		assertThat(response.isPinned()).isTrue();
 	}
 
@@ -214,6 +218,7 @@ class PostServiceTest {
 		ReflectionTestUtils.setField(user, "id", id);
 		ReflectionTestUtils.setField(user, "uuid", UUID.randomUUID());
 		ReflectionTestUtils.setField(user, "status", UserStatus.ACTIVE);
+		ReflectionTestUtils.setField(user, "name", "user-" + id);
 		return user;
 	}
 
