@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,7 +17,9 @@ import com.aivle.project.user.security.CustomUserDetails;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,8 +64,8 @@ class RefreshTokenServiceTest {
 	@BeforeEach
 	void setUp() {
 		ObjectMapper objectMapper = new ObjectMapper();
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(redisTemplate.opsForSet()).thenReturn(setOperations);
+		lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		lenient().when(redisTemplate.opsForSet()).thenReturn(setOperations);
 		refreshTokenService = new RefreshTokenService(redisTemplate, objectMapper, refreshTokenRepository, jwtTokenService);
 	}
 
@@ -141,5 +144,52 @@ class RefreshTokenServiceTest {
 		verify(setOperations).remove("sessions:" + USER_ID, "rt-old");
 		verify(valueOperations).set(eq("refresh:rt-new"), any(String.class), any(Duration.class));
 		verify(refreshTokenRepository, atLeastOnce()).save(any(RefreshTokenEntity.class));
+	}
+
+	@Test
+	@DisplayName("초 단위 레거시 캐시 토큰도 유효하면 정상 로드된다")
+	void loadValidToken_shouldSupportLegacySecondEpochCache() throws Exception {
+		// given: 레거시(초 단위) 캐시 토큰이 Redis에 저장되어 있다
+		long nowSeconds = System.currentTimeMillis() / 1000;
+		RefreshTokenCache legacyCache = new RefreshTokenCache(
+			"legacy-rt",
+			USER_ID,
+			"device-1",
+			"ios",
+			"127.0.0.1",
+			nowSeconds - 10,
+			nowSeconds + 600,
+			nowSeconds - 10
+		);
+		String legacyJson = new ObjectMapper().writeValueAsString(legacyCache);
+		when(valueOperations.get("refresh:legacy-rt")).thenReturn(legacyJson);
+
+		// when
+		RefreshTokenCache loaded = refreshTokenService.loadValidToken("legacy-rt");
+
+		// then
+		assertThat(loaded.token()).isEqualTo("legacy-rt");
+		assertThat(loaded.userId()).isEqualTo(USER_ID);
+	}
+
+	@Test
+	@DisplayName("전체 로그아웃 시 사용자 리프레시 토큰을 Redis/DB에서 모두 폐기한다")
+	void revokeAllByUserId_shouldRevokeAllUserTokens() {
+		// given: 사용자 세션 키에 토큰들이 존재하고 DB에 활성 토큰이 있다
+		RefreshTokenEntity first = new RefreshTokenEntity(USER_ID, "rt-1", "ios", "127.0.0.1", LocalDateTime.now().plusDays(1));
+		RefreshTokenEntity second = new RefreshTokenEntity(USER_ID, "rt-2", "android", "127.0.0.1", LocalDateTime.now().plusDays(1));
+		when(setOperations.members("sessions:" + USER_ID)).thenReturn(Set.of("rt-1", "rt-2"));
+		when(refreshTokenRepository.findAllByUserIdAndRevokedFalse(USER_ID)).thenReturn(List.of(first, second));
+
+		// when: 전체 토큰 폐기
+		refreshTokenService.revokeAllByUserId(USER_ID);
+
+		// then: Redis 토큰 키/세션 키가 삭제되고 DB 토큰이 revoke 처리된다
+		verify(redisTemplate).delete("refresh:rt-1");
+		verify(redisTemplate).delete("refresh:rt-2");
+		verify(redisTemplate).delete("sessions:" + USER_ID);
+		verify(refreshTokenRepository).saveAll(List.of(first, second));
+		assertThat(first.isRevoked()).isTrue();
+		assertThat(second.isRevoked()).isTrue();
 	}
 }
