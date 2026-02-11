@@ -591,6 +591,30 @@ public class CompanyReportMetricValuesRepositoryImpl implements CompanyReportMet
 			.fetch();
 	}
 
+	@Override
+	public java.util.Optional<Integer> findMaxActualQuarterKeyByStockCodes(List<String> stockCodes) {
+		QCompanyReportMetricValuesEntity v = QCompanyReportMetricValuesEntity.companyReportMetricValuesEntity;
+		QCompanyReportVersionsEntity rv = QCompanyReportVersionsEntity.companyReportVersionsEntity;
+		QCompanyReportsEntity cr = QCompanyReportsEntity.companyReportsEntity;
+		QCompaniesEntity c = QCompaniesEntity.companiesEntity;
+		QQuartersEntity q = QQuartersEntity.quartersEntity;
+
+		return java.util.Optional.ofNullable(
+			queryFactory.select(q.quarterKey.max())
+				.from(v)
+				.join(v.reportVersion, rv)
+				.join(rv.companyReport, cr)
+				.join(cr.company, c)
+				.join(v.quarter, q)
+				.where(
+					c.stockCode.in(stockCodes),
+					v.valueType.eq(MetricValueType.ACTUAL),
+					v.metricValue.isNotNull()
+				)
+				.fetchOne()
+		);
+	}
+
 	@Getter
 	@RequiredArgsConstructor
 	public static class ReportMetricRowDto implements ReportMetricRowProjection {
