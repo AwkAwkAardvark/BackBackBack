@@ -72,6 +72,9 @@ class CompanyAiServiceTest {
     @Mock
     private CompanyReportMetricValuesRepository companyReportMetricValuesRepository;
 
+    @Mock
+    private AiReportRequestStatusService aiReportRequestStatusService;
+
     @Test
     @DisplayName("AI 예측 분석 결과를 조회하고 저장한다 (Cache Miss)")
     void getCompanyAnalysis_Success() {
@@ -279,6 +282,102 @@ class CompanyAiServiceTest {
         // then
         assertThat(result).isNotNull();
         verify(companyReportVersionsRepository).save(any(CompanyReportVersionsEntity.class));
+    }
+
+    @Test
+    @DisplayName("최신 버전에 PDF가 없어도 PDF가 있는 최신 버전을 조회한다")
+    void getReportFileById_ReturnsLatestVersionWithPdf() {
+        // given
+        Long companyId = 1L;
+        Integer year = 2026;
+        Integer quarter = 1;
+
+        CompaniesEntity company = CompaniesEntity.create("00000001", "삼성전자", null, "005930", LocalDate.now());
+        ReflectionTestUtils.setField(company, "id", companyId);
+        QuartersEntity quarterEntity = QuartersEntity.create(year, quarter, 20261, LocalDate.now(), LocalDate.now());
+        CompanyReportsEntity report = CompanyReportsEntity.create(company, quarterEntity, null);
+        FilesEntity pdfFile = FilesEntity.create(
+            FileUsageType.REPORT_PDF,
+            "http://localhost/files/report.pdf",
+            "reports/005930/2026/1/report.pdf",
+            "report_005930.pdf",
+            100L,
+            "application/pdf"
+        );
+        CompanyReportVersionsEntity versionWithPdf = CompanyReportVersionsEntity.create(
+            report,
+            1,
+            java.time.LocalDateTime.now(),
+            true,
+            pdfFile
+        );
+
+        given(companiesRepository.findById(companyId)).willReturn(Optional.of(company));
+        given(quartersRepository.findByYearAndQuarter(year.shortValue(), quarter.byteValue())).willReturn(Optional.of(quarterEntity));
+        given(companyReportsRepository.findByCompanyIdAndQuarterId(companyId, quarterEntity.getId()))
+            .willReturn(Optional.of(report));
+        given(companyReportVersionsRepository.findTopByCompanyReportAndPdfFileIsNotNullOrderByVersionNoDesc(report))
+            .willReturn(Optional.of(versionWithPdf));
+
+        // when
+        FilesEntity result = companyAiService.getReportFileById(companyId, year, quarter);
+
+        // then
+        assertThat(result).isEqualTo(pdfFile);
+        verify(companyReportVersionsRepository)
+            .findTopByCompanyReportAndPdfFileIsNotNullOrderByVersionNoDesc(report);
+        verify(companyReportVersionsRepository, org.mockito.Mockito.never())
+            .findTopByCompanyReportOrderByVersionNoDesc(any());
+    }
+
+    @Test
+    @DisplayName("비동기 리포트 요청 시 기존 PDF가 있으면 PROCESSING 없이 바로 COMPLETED 처리한다")
+    void generateReportAsync_WhenReportExists_CompletesImmediately() {
+        // given
+        String requestId = "req-1";
+        Long companyId = 1L;
+        Integer year = 2026;
+        Integer quarter = 1;
+
+        CompaniesEntity company = CompaniesEntity.create("00000001", "삼성전자", null, "005930", LocalDate.now());
+        ReflectionTestUtils.setField(company, "id", companyId);
+        QuartersEntity quarterEntity = QuartersEntity.create(year, quarter, 20261, LocalDate.now(), LocalDate.now());
+        CompanyReportsEntity report = CompanyReportsEntity.create(company, quarterEntity, null);
+        FilesEntity pdfFile = FilesEntity.create(
+            FileUsageType.REPORT_PDF,
+            "http://localhost/files/report.pdf",
+            "reports/005930/2026/1/report.pdf",
+            "report_005930.pdf",
+            100L,
+            "application/pdf"
+        );
+        ReflectionTestUtils.setField(pdfFile, "id", 55L);
+        CompanyReportVersionsEntity versionWithPdf = CompanyReportVersionsEntity.create(
+            report,
+            1,
+            java.time.LocalDateTime.now(),
+            true,
+            pdfFile
+        );
+
+        given(companiesRepository.findById(companyId)).willReturn(Optional.of(company));
+        given(quartersRepository.findByYearAndQuarter(year.shortValue(), quarter.byteValue())).willReturn(Optional.of(quarterEntity));
+        given(companyReportsRepository.findByCompanyIdAndQuarterId(companyId, quarterEntity.getId()))
+            .willReturn(Optional.of(report));
+        given(companyReportVersionsRepository.findTopByCompanyReportAndPdfFileIsNotNullOrderByVersionNoDesc(report))
+            .willReturn(Optional.of(versionWithPdf));
+
+        // when
+        companyAiService.generateReportAsync(requestId, companyId, year, quarter);
+
+        // then
+        verify(aiReportRequestStatusService, org.mockito.Mockito.never()).updateProcessing(requestId);
+        verify(aiReportRequestStatusService).updateCompleted(
+            requestId,
+            "55",
+            "/api/companies/1/ai-report/download?year=2026&quarter=1"
+        );
+        verify(aiServerClient, org.mockito.Mockito.never()).getAnalysisReportPdf(any());
     }
 
     @Test

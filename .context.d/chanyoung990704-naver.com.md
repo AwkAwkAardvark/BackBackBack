@@ -6,6 +6,7 @@
 - email: chanyoung990704@naver.com
 
 ## 2. Recent Notes (최근 메모)
+- 2026-02-12 | 작업: AI 리포트 비동기 요청 즉시 완료 지연 수정(#98) | 결과: `CompanyAiService`의 파일 존재 판정을 "PDF가 있는 최신 버전" 기준으로 변경하고, 기존 PDF 존재 시 `PROCESSING` 없이 `COMPLETED`로 즉시 전환하도록 보정. `CompanyAiServiceTest`에 기존 PDF 재사용/상태 전이 테스트 추가 후 타깃 테스트 통과 | 이슈: 없음
 - 2026-02-11 | 작업: Virtual Thread Phase1 성능측정 계측 고도화(3번) | 결과: `collect-runtime-metrics.sh`/`summarize-runtime-metrics.sh`를 추가하고 `run-benchmark.sh`/`compare.sh`에 통합해 before/after 런타임 지표를 자동 수집/비교하도록 확장. perf 보안 규칙에 `/actuator/metrics/**` 허용 추가, 문서 갱신 후 `20260211-vt-phase1-metrics-v3` 실측에서 after 성능 저하 및 CPU/GC 상승 확인 | 이슈: `tomcat.threads.busy` 지표는 환경에 따라 미노출(NaN) 가능
 - 2026-02-11 | 작업: ai-report 동시성 500 오류(UK_REPORT_VERSION_INDEX_2) 완화 | 결과: `CompanyAiService` 버전 생성 시 `company_reports` 비관적 락(`findByIdForUpdate`) 적용, `PerfDataInitializer`에 2026Q1 분기/보고서 선생성 추가, `application-perf.yaml` 메일 설정 보강. `CompanyAiServiceTest`/`PerfBenchmarkControllerTest` 통과 및 perf 병렬 호출(100회, 동시 20)에서 HTTP 200 100건/유니크 충돌 로그 0건 확인 | 이슈: 없음
 - 2026-02-11 | 작업: Phase1 Virtual Thread 도입 및 JMeter 벤치마크 기반 구축(#95) | 결과: `insightExecutor`/`emailExecutor`에 Virtual Thread 토글을 도입하고 perf 프로파일(`application-perf.yaml`), perf 벤치마크 API(`/api/perf/benchmark/*`), 외부 의존성 mock(AI/Turnstile), JMeter 플랜/실행·비교 스크립트(`perf/jmeter`, `perf/scripts`) 및 문서를 추가함. 관련 단위 테스트와 `./gradlew test` 전체 통과 | 이슈: 실행 환경에 `jmeter` CLI가 없어 before/after 실측 리포트 생성은 미실행
