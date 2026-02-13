@@ -4,8 +4,7 @@ WORKDIR /app
 
 RUN groupadd --system app && useradd --system --gid app --create-home app
 
-ARG JAR_FILE=build/libs/*.jar
-COPY ${JAR_FILE} app.jar
+COPY build/libs/app.jar app.jar
 
 RUN mkdir -p /var/app/uploads /var/log/backbackback \
     && chown -R app:app /app /var/app/uploads /var/log/backbackback

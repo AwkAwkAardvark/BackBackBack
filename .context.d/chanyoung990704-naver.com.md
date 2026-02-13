@@ -6,6 +6,7 @@
 - email: chanyoung990704@naver.com
 
 ## 2. Recent Notes (최근 메모)
+- 2026-02-13 | 작업: CodeBuild Docker build 실패 원인 보정 | 결과: `Dockerfile`을 `build/libs/app.jar` 단일 복사 방식으로 고정하고 `.dockerignore`에서 해당 파일만 include되도록 조정, `buildspec.yml`에 non-plain bootJar 선택/복사 및 push 전 이미지 존재 검사 추가 | 이슈: 없음
 - 2026-02-13 | 작업: 로컬 Docker 실행 오버라이드 정리 | 결과: `docker-compose.local.yml` 추가, `docker-compose.app.yml`의 env file 경로를 `APP_ENV_FILE`로 변수화, `LOCAL_ENV_FILE` 지원으로 운영/로컬 compose 병합 실행 가능하도록 보정 | 이슈: 없음
 - 2026-02-13 | 작업: Docker 배포 전환 2차(CI/아티팩트/문서) | 결과: `Dockerfile`/`.dockerignore`/`docker-compose.app.yml` 추가, `buildspec.yml`을 ECR 이미지 빌드·푸시 + `image-uri.env` 아티팩트 생성으로 변경, `README.MD` 배포 가이드 반영, `./gradlew test` 및 배포 스크립트 테스트 통과 | 이슈: 없음
 - 2026-02-13 | 작업: Docker 배포 전환 1차(스크립트 듀얼 런타임 리팩토링) | 결과: `scripts/lib/deploy-runtime.sh` 공통 모듈 추가, `setup/install/start/stop/health-check`에 `DEPLOY_RUNTIME(systemd|docker)` 분기 반영, env 예시에 Docker 변수 추가, `scripts/tests/deploy-runtime-test.sh` 작성 후 `bash -n`/테스트 통과 | 이슈: 없음

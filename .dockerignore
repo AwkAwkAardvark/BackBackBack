@@ -4,7 +4,10 @@
 .idea
 .context.d
 .context.md
-build/
+build/*
+!build/libs/
+build/libs/*
+!build/libs/app.jar
 logs/
 upload/
 perf/results/
