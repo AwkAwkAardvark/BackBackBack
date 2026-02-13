@@ -64,7 +64,7 @@ import org.testcontainers.utility.DockerImageName;
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @Transactional
 @Import({AuthIntegrationTest.TestSecurityController.class, TestSecurityConfig.class})
 class AuthIntegrationTest {
@@ -381,7 +381,7 @@ class AuthIntegrationTest {
 	void logout_shouldClearCookie() throws Exception {
 		// given: 활성 사용자와 로그인 상태
 		createActiveUserWithRole("logout@test.com", "password", RoleName.ROLE_USER);
-		
+
 		LoginRequest loginRequest = new LoginRequest();
 		loginRequest.setEmail("logout@test.com");
 		loginRequest.setPassword("password");
@@ -393,13 +393,13 @@ class AuthIntegrationTest {
 			.andExpect(status().isOk())
 			.andReturn();
 
-			ApiResponse<AuthLoginResponse> loginApiResponse = objectMapper.readValue(
-				loginResult.getResponse().getContentAsString(),
-				new TypeReference<ApiResponse<AuthLoginResponse>>() {}
-			);
-			assertThat(loginApiResponse.success()).isTrue();
-			assertThat(loginApiResponse.data()).isNotNull();
-			String accessToken = loginApiResponse.data().accessToken();
+		ApiResponse<AuthLoginResponse> loginApiResponse = objectMapper.readValue(
+			loginResult.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<AuthLoginResponse>>() {}
+		);
+		assertThat(loginApiResponse.success()).isTrue();
+		assertThat(loginApiResponse.data()).isNotNull();
+		String accessToken = loginApiResponse.data().accessToken();
 		Cookie refreshCookie = loginResult.getResponse().getCookie("refresh_token");
 		assertThat(refreshCookie).isNotNull();
 
@@ -411,12 +411,12 @@ class AuthIntegrationTest {
 			.andDo(print())
 			.andReturn();
 
-		        // then: 쿠키가 삭제(Max-Age=0)되어야 함
-		        Cookie clearedCookie = logoutResult.getResponse().getCookie("refresh_token");
-		        assertThat(clearedCookie).isNotNull();
-		        assertThat(clearedCookie.getMaxAge()).isZero();
-		        assertThat(clearedCookie.getValue()).isEmpty();
-		    }
+		// then: 쿠키가 삭제(Max-Age=0)되어야 함
+		Cookie clearedCookie = logoutResult.getResponse().getCookie("refresh_token");
+		assertThat(clearedCookie).isNotNull();
+		assertThat(clearedCookie.getMaxAge()).isZero();
+		assertThat(clearedCookie.getValue()).isEmpty();
+	}
 
 	@Test
 	@DisplayName("로그아웃 후 기존 토큰으로 클레임 조회가 실패한다")
@@ -435,12 +435,12 @@ class AuthIntegrationTest {
 				.header("Authorization", "Bearer " + accessToken))
 			.andExpect(status().isUnauthorized());
 	}
-		
-		    @Test
-		    @DisplayName("전체 로그아웃 시 블랙리스트가 설정되고 쿠키가 삭제된다")	void logoutAll_shouldBlacklistAndClearCookie() throws Exception {
+	@Test
+	@DisplayName("전체 로그아웃 시 블랙리스트가 설정되고 쿠키가 삭제된다")
+	void logoutAll_shouldBlacklistAndClearCookie() throws Exception {
 		// given: 활성 사용자 및 로그인
 		createActiveUserWithRole("logoutall@test.com", "password", RoleName.ROLE_USER);
-		
+
 		LoginRequest loginRequest = new LoginRequest();
 		loginRequest.setEmail("logoutall@test.com");
 		loginRequest.setPassword("password");
@@ -451,14 +451,14 @@ class AuthIntegrationTest {
 				.content(objectMapper.writeValueAsString(loginRequest)))
 			.andExpect(status().isOk())
 			.andReturn();
-		
-			ApiResponse<AuthLoginResponse> loginApiResponse = objectMapper.readValue(
-				loginResult.getResponse().getContentAsString(),
-				new TypeReference<ApiResponse<AuthLoginResponse>>() {}
-			);
-			assertThat(loginApiResponse.success()).isTrue();
-			assertThat(loginApiResponse.data()).isNotNull();
-			String accessToken = loginApiResponse.data().accessToken();
+
+		ApiResponse<AuthLoginResponse> loginApiResponse = objectMapper.readValue(
+			loginResult.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<AuthLoginResponse>>() {}
+		);
+		assertThat(loginApiResponse.success()).isTrue();
+		assertThat(loginApiResponse.data()).isNotNull();
+		String accessToken = loginApiResponse.data().accessToken();
 		Cookie refreshCookie = loginResult.getResponse().getCookie("refresh_token");
 
 		// when: 전체 로그아웃 요청 (인증 필요)
@@ -472,8 +472,6 @@ class AuthIntegrationTest {
 		Cookie clearedCookie = logoutAllResult.getResponse().getCookie("refresh_token");
 		assertThat(clearedCookie).isNotNull();
 		assertThat(clearedCookie.getMaxAge()).isZero();
-		
-		// then: 블랙리스트 확인 (재로그인/토큰사용 시도는 별도 검증 필요하지만 여기선 성공 응답으로 갈음)
 	}
 
 	@Test
@@ -494,6 +492,54 @@ class AuthIntegrationTest {
 			.andExpect(status().isUnauthorized());
 	}
 
+	@Test
+	@DisplayName("전체 로그아웃 후 기존 refresh 쿠키로 재발급이 실패한다")
+	void logoutAll_shouldRejectRefreshWithOldCookie() throws Exception {
+		// given
+		createActiveUserWithRole("logoutall-refresh@test.com", "password", RoleName.ROLE_USER);
+
+		LoginRequest loginRequest = new LoginRequest();
+		loginRequest.setEmail("logoutall-refresh@test.com");
+		loginRequest.setPassword("password");
+		loginRequest.setDeviceId("device-1");
+
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(loginRequest)))
+			.andExpect(status().isOk())
+			.andReturn();
+
+		ApiResponse<AuthLoginResponse> loginApiResponse = objectMapper.readValue(
+			loginResult.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<AuthLoginResponse>>() {}
+		);
+		assertThat(loginApiResponse.success()).isTrue();
+		assertThat(loginApiResponse.data()).isNotNull();
+		String accessToken = loginApiResponse.data().accessToken();
+		Cookie refreshCookie = loginResult.getResponse().getCookie("refresh_token");
+		assertThat(refreshCookie).isNotNull();
+
+		// when: 전체 로그아웃 후 기존 쿠키로 재발급 시도
+		mockMvc.perform(post("/api/auth/logout-all")
+				.header("Authorization", "Bearer " + accessToken)
+				.cookie(refreshCookie))
+			.andExpect(status().isOk());
+
+		MvcResult refreshResult = mockMvc.perform(post("/api/auth/refresh")
+				.cookie(refreshCookie))
+			.andExpect(status().isUnauthorized())
+			.andReturn();
+
+		// then
+		ApiResponse<Void> refreshApiResponse = objectMapper.readValue(
+			refreshResult.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<Void>>() {}
+		);
+		assertThat(refreshApiResponse.success()).isFalse();
+		assertThat(refreshApiResponse.error()).isNotNull();
+		assertThat(refreshApiResponse.error().code()).isEqualTo("AUTH_401");
+	}
+
 	private String loginAndGetAccessToken(String email, String password, String deviceId) throws Exception {
 		LoginRequest request = new LoginRequest();
 		request.setEmail(email);
@@ -507,23 +553,21 @@ class AuthIntegrationTest {
 			.andExpect(status().isOk())
 			.andReturn();
 
-			ApiResponse<AuthLoginResponse> apiResponse = objectMapper.readValue(
-				result.getResponse().getContentAsString(),
-				new TypeReference<ApiResponse<AuthLoginResponse>>() {}
-			);
-			assertThat(apiResponse.success()).isTrue();
-			assertThat(apiResponse.data()).isNotNull();
-			return apiResponse.data().accessToken();
-		}
+		ApiResponse<AuthLoginResponse> apiResponse = objectMapper.readValue(
+			result.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<AuthLoginResponse>>() {}
+		);
+		assertThat(apiResponse.success()).isTrue();
+		assertThat(apiResponse.data()).isNotNull();
+		return apiResponse.data().accessToken();
+	}
 
 	private UserEntity createActiveUserWithRole(String email, String rawPassword, RoleName roleName) {
 		UserEntity user = newUser(email, rawPassword);
 		userRepository.save(user);
 
 		RoleEntity role = roleRepository.findByName(roleName)
-			.orElseGet(() -> roleRepository.save(
-				new RoleEntity(roleName, roleName.name().toLowerCase() + " role")
-			));
+			.orElseThrow(() -> new IllegalStateException("역할 시드가 존재하지 않습니다: " + roleName));
 
 		userRoleRepository.save(new UserRoleEntity(user, role));
 		entityManager.flush();

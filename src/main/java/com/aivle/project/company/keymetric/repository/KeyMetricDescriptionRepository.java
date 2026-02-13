@@ -1,6 +1,7 @@
 package com.aivle.project.company.keymetric.repository;
 
 import com.aivle.project.company.keymetric.entity.KeyMetricDescriptionEntity;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,4 +11,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface KeyMetricDescriptionRepository extends JpaRepository<KeyMetricDescriptionEntity, Long> {
 
 	Optional<KeyMetricDescriptionEntity> findByMetricCode(String metricCode);
+
+	List<KeyMetricDescriptionEntity> findAllByMetricCodeIn(List<String> metricCodes);
 }

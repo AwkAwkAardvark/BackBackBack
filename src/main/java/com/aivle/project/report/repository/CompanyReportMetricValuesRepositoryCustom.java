@@ -64,4 +64,6 @@ public interface CompanyReportMetricValuesRepositoryCustom {
 		Long companyId,
 		int quarterKey
 	);
+
+	java.util.Optional<Integer> findMaxActualQuarterKeyByStockCodes(List<String> stockCodes);
 }

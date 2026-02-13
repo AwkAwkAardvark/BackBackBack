@@ -16,6 +16,10 @@ public interface CompanyReportVersionsRepository extends JpaRepository<CompanyRe
 
 	Optional<CompanyReportVersionsEntity> findTopByCompanyReportOrderByVersionNoDesc(CompanyReportsEntity companyReport);
 
+	Optional<CompanyReportVersionsEntity> findTopByCompanyReportAndPdfFileIsNotNullOrderByVersionNoDesc(
+		CompanyReportsEntity companyReport
+	);
+
 	Optional<CompanyReportVersionsEntity> findTopByCompanyReportAndPublishedFalseOrderByVersionNoDesc(
 		CompanyReportsEntity companyReport
 	);

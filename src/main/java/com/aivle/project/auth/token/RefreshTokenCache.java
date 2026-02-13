@@ -13,16 +13,16 @@ public record RefreshTokenCache(
 	long expiresAt,
 	long lastUsedAt
 ) {
-	public RefreshTokenCache rotate(String newToken, long nowEpochSeconds, long newExpiresAt) {
+	public RefreshTokenCache rotate(String newToken, long nowEpochMillis, long newExpiresAtMillis) {
 		return new RefreshTokenCache(
 			newToken,
 			userId,
 			deviceId,
 			deviceInfo,
 			ipAddress,
-			nowEpochSeconds,
-			newExpiresAt,
-			nowEpochSeconds
+			nowEpochMillis,
+			newExpiresAtMillis,
+			nowEpochMillis
 		);
 	}
 }

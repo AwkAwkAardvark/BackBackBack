@@ -89,13 +89,16 @@ public class DashboardSummaryService {
 		List<Integer> windowQuarterKeys = buildWindowQuarterKeys(latestActualQuarterKey);
 		List<String> windowQuarters = windowQuarterKeys.stream().map(this::toQuarterLabel).toList();
 
-		RiskStatusDistributionDto currentDistribution = countDistribution(companyIds, latestActualQuarterKey, false);
+		List<CompanyKeyMetricEntity> latestMetrics = companyKeyMetricRepository
+			.findByCompanyIdInAndQuarter_QuarterKey(companyIds, latestActualQuarterKey);
+
+		RiskStatusDistributionDto currentDistribution = countDistribution(latestMetrics);
 		RiskStatusDistributionPercentDto distributionPercent = toDistributionPercent(currentDistribution);
-		double networkStatus = calculateNetworkStatus(companyIds, latestActualQuarterKey);
+		double networkStatus = calculateNetworkStatus(latestMetrics);
 		double averageRiskLevel = roundOneDecimal(100.0 - networkStatus);
 		double riskIndex = calculateRiskIndex(distributionPercent);
 		KpiCardDto riskDwellTimeKpi = buildRiskDwellTimeKpi(companyIds, latestActualQuarterKey);
-		MajorSectorDto majorSector = calculateMajorSector(watchlists, companyIds, latestActualQuarterKey);
+		MajorSectorDto majorSector = calculateMajorSector(watchlists, companyIds, latestMetrics);
 		List<RiskStatusBucketDto> trend = buildTrend(companyIds, windowQuarterKeys, latestActualQuarterKey);
 
 		return new DashboardSummaryResponse(
@@ -143,13 +146,17 @@ public class DashboardSummaryService {
 	}
 
 	private int resolveLatestActualQuarterKey(List<CompanyWatchlistEntity> watchlists) {
-		return watchlists.stream()
+		List<String> stockCodes = watchlists.stream()
 			.map(CompanyWatchlistEntity::getCompany)
 			.map(CompaniesEntity::getStockCode)
 			.filter(stockCode -> stockCode != null && !stockCode.isBlank())
-			.map(stockCode -> companyReportMetricValuesRepository.findMaxActualQuarterKeyByStockCode(stockCode).orElse(null))
-			.filter(java.util.Objects::nonNull)
-			.max(Comparator.naturalOrder())
+			.toList();
+
+		if (stockCodes.isEmpty()) {
+			throw new IllegalArgumentException("관심 기업의 종목 코드를 찾을 수 없습니다.");
+		}
+
+		return companyReportMetricValuesRepository.findMaxActualQuarterKeyByStockCodes(stockCodes)
 			.orElseThrow(() -> new IllegalArgumentException("ACTUAL 분기 데이터를 찾을 수 없습니다."));
 	}
 
@@ -168,7 +175,9 @@ public class DashboardSummaryService {
 		List<RiskStatusBucketDto> buckets = new ArrayList<>();
 		for (int quarterKey : windowQuarterKeys) {
 			boolean forecast = quarterKey > latestActualQuarterKey;
-			RiskStatusDistributionDto distribution = countDistribution(companyIds, quarterKey, forecast);
+			List<CompanyKeyMetricEntity> metrics = companyKeyMetricRepository
+				.findByCompanyIdInAndQuarter_QuarterKey(companyIds, quarterKey);
+			RiskStatusDistributionDto distribution = countDistribution(metrics);
 			RiskStatusBucketDto.DataType dataType = forecast
 				? RiskStatusBucketDto.DataType.FORECAST
 				: RiskStatusBucketDto.DataType.ACTUAL;
@@ -183,10 +192,7 @@ public class DashboardSummaryService {
 		return buckets;
 	}
 
-	private double calculateNetworkStatus(List<Long> companyIds, int latestActualQuarterKey) {
-		List<CompanyKeyMetricEntity> metrics = companyKeyMetricRepository
-			.findByCompanyIdInAndQuarter_QuarterKey(companyIds, latestActualQuarterKey);
-
+	private double calculateNetworkStatus(List<CompanyKeyMetricEntity> metrics) {
 		double average = metrics.stream()
 			.map(CompanyKeyMetricEntity::getInternalHealthScore)
 			.filter(java.util.Objects::nonNull)
@@ -199,10 +205,7 @@ public class DashboardSummaryService {
 			.doubleValue();
 	}
 
-	private RiskStatusDistributionDto countDistribution(List<Long> companyIds, int quarterKey, boolean forecast) {
-		List<CompanyKeyMetricEntity> metrics = companyKeyMetricRepository
-			.findByCompanyIdInAndQuarter_QuarterKey(companyIds, quarterKey);
-
+	private RiskStatusDistributionDto countDistribution(List<CompanyKeyMetricEntity> metrics) {
 		Map<CompanyKeyMetricRiskLevel, Integer> counter = new EnumMap<>(CompanyKeyMetricRiskLevel.class);
 		for (CompanyKeyMetricEntity metric : metrics) {
 			CompanyKeyMetricRiskLevel level = metric.getRiskLevel();
@@ -238,7 +241,7 @@ public class DashboardSummaryService {
 	private MajorSectorDto calculateMajorSector(
 		List<CompanyWatchlistEntity> watchlists,
 		List<Long> companyIds,
-		int latestActualQuarterKey
+		List<CompanyKeyMetricEntity> latestMetrics
 	) {
 		Map<Long, String> sectorByCompanyId = new HashMap<>();
 		for (CompanyWatchlistEntity watchlist : watchlists) {
@@ -249,11 +252,8 @@ public class DashboardSummaryService {
 			sectorByCompanyId.put(companyId, (sectorName == null || sectorName.isBlank()) ? "미분류" : sectorName);
 		}
 
-		List<CompanyKeyMetricEntity> metrics = companyKeyMetricRepository
-			.findByCompanyIdInAndQuarter_QuarterKey(companyIds, latestActualQuarterKey);
-
 		Map<Long, CompanyKeyMetricEntity> actualMetricByCompanyId = new HashMap<>();
-		for (CompanyKeyMetricEntity metric : metrics) {
+		for (CompanyKeyMetricEntity metric : latestMetrics) {
 			actualMetricByCompanyId.put(metric.getCompany().getId(), metric);
 		}
 

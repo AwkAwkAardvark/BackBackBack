@@ -76,9 +76,12 @@ public class AuthService {
 	}
 
 	public TokenResponse refresh(TokenRefreshRequest request) {
+		RefreshTokenCache currentToken = refreshTokenService.loadValidToken(request.getRefreshToken());
+		CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserById(currentToken.userId());
+		validateRefreshTokenAfterLogoutAll(request.getRefreshToken(), userDetails, currentToken);
+
 		String newRefreshToken = jwtTokenService.createRefreshToken();
 		RefreshTokenCache rotated = refreshTokenService.rotateToken(request.getRefreshToken(), newRefreshToken);
-		CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserById(rotated.userId());
 		if (!userDetails.isEnabled()) {
 			throw new AuthException(AuthErrorCode.INVALID_REFRESH_TOKEN);
 		}
@@ -93,6 +96,27 @@ public class AuthService {
 		);
 	}
 
+	private void validateRefreshTokenAfterLogoutAll(
+		String refreshToken,
+		CustomUserDetails userDetails,
+		RefreshTokenCache refreshTokenCache
+	) {
+		Instant logoutAllAt = accessTokenBlacklistService.getLogoutAllAt(userDetails.getUuid().toString());
+		if (logoutAllAt == null) {
+			return;
+		}
+
+		Instant tokenUsedAt = Instant.ofEpochMilli(normalizeEpochMillis(refreshTokenCache.lastUsedAt()));
+		if (!tokenUsedAt.isAfter(logoutAllAt)) {
+			try {
+				refreshTokenService.revokeToken(refreshToken);
+			} catch (AuthException ignored) {
+				// 이미 무효화된 토큰은 추가 처리하지 않는다.
+			}
+			throw new AuthException(AuthErrorCode.INVALID_REFRESH_TOKEN);
+		}
+	}
+
 	public void logout(String refreshToken, Jwt jwt) {
 		if (refreshToken != null && !refreshToken.isBlank()) {
 			refreshTokenService.revokeToken(refreshToken);
@@ -103,6 +127,7 @@ public class AuthService {
 	}
 
 	public void logoutAll(UserEntity user) {
+		refreshTokenService.revokeAllByUserId(user.getId());
 		accessTokenBlacklistService.markLogoutAll(user.getUuid().toString(), Instant.now());
 	}
 
@@ -137,5 +162,13 @@ public class AuthService {
 			return "default";
 		}
 		return deviceId;
+	}
+
+	private long normalizeEpochMillis(long epochValue) {
+		// 레거시(초 단위) 캐시와 신규(밀리초 단위) 캐시를 모두 허용한다.
+		if (epochValue > 0 && epochValue < 10_000_000_000L) {
+			return epochValue * 1000;
+		}
+		return epochValue;
 	}
 }

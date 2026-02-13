@@ -147,8 +147,16 @@ public class CompanyOverviewService {
 			valueMap.put("EXTERNAL_REPUTATION", null);
 		}
 
+		Map<String, com.aivle.project.company.keymetric.entity.KeyMetricDescriptionEntity> descriptionMap = keyMetricDescriptionRepository
+			.findAllByMetricCodeIn(KEY_METRIC_CODES)
+			.stream()
+			.collect(java.util.stream.Collectors.toMap(
+				com.aivle.project.company.keymetric.entity.KeyMetricDescriptionEntity::getMetricCode,
+				description -> description
+			));
+
 		for (String metricCode : KEY_METRIC_CODES) {
-			var description = keyMetricDescriptionRepository.findByMetricCode(metricCode).orElse(null);
+			var description = descriptionMap.get(metricCode);
 			CompanyOverviewTooltipDto tooltip = description == null ? null : new CompanyOverviewTooltipDto(
 				description.getDescription(),
 				description.getInterpretation(),

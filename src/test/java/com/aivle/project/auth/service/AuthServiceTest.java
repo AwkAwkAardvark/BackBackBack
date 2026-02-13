@@ -22,6 +22,7 @@ import com.aivle.project.user.entity.UserEntity;
 import com.aivle.project.user.security.CustomUserDetails;
 import com.aivle.project.user.security.CustomUserDetailsService;
 import com.aivle.project.user.service.UserDomainService;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -116,6 +117,16 @@ class AuthServiceTest {
 		TokenRefreshRequest request = new TokenRefreshRequest();
 		request.setRefreshToken("old-token");
 
+		RefreshTokenCache current = new RefreshTokenCache(
+			"old-token",
+			1L,
+			"device-1",
+			"ios",
+			"127.0.0.1",
+			1_735_000_000_000L,
+			1_735_000_600_000L,
+			1_735_000_000_000L
+		);
 		RefreshTokenCache rotated = new RefreshTokenCache(
 			"new-token",
 			1L,
@@ -126,11 +137,13 @@ class AuthServiceTest {
 			2L,
 			1L
 		);
+		when(refreshTokenService.loadValidToken("old-token")).thenReturn(current);
 		when(refreshTokenService.rotateToken("old-token", "new-token")).thenReturn(rotated);
 		when(jwtTokenService.createRefreshToken()).thenReturn("new-token");
 
 		CustomUserDetails userDetails = mock(CustomUserDetails.class);
 		when(userDetails.isEnabled()).thenReturn(true);
+		when(userDetails.getUuid()).thenReturn(UUID.randomUUID());
 		when(userDetailsService.loadUserById(1L)).thenReturn(userDetails);
 		when(jwtTokenService.createAccessToken(userDetails, "device-1")).thenReturn("access");
 		when(jwtTokenService.getAccessTokenExpirationSeconds()).thenReturn(1800L);
@@ -154,6 +167,16 @@ class AuthServiceTest {
 		TokenRefreshRequest request = new TokenRefreshRequest();
 		request.setRefreshToken("old-token");
 
+		RefreshTokenCache current = new RefreshTokenCache(
+			"old-token",
+			1L,
+			"device-1",
+			"ios",
+			"127.0.0.1",
+			1_735_000_000_000L,
+			1_735_000_600_000L,
+			1_735_000_000_000L
+		);
 		RefreshTokenCache rotated = new RefreshTokenCache(
 			"new-token",
 			1L,
@@ -164,11 +187,13 @@ class AuthServiceTest {
 			2L,
 			1L
 		);
+		when(refreshTokenService.loadValidToken("old-token")).thenReturn(current);
 		when(refreshTokenService.rotateToken("old-token", "new-token")).thenReturn(rotated);
 		when(jwtTokenService.createRefreshToken()).thenReturn("new-token");
 
 		CustomUserDetails userDetails = mock(CustomUserDetails.class);
 		when(userDetails.isEnabled()).thenReturn(false);
+		when(userDetails.getUuid()).thenReturn(UUID.randomUUID());
 		when(userDetailsService.loadUserById(1L)).thenReturn(userDetails);
 
 		// when & then: 비활성 사용자는 예외가 발생한다
@@ -224,14 +249,46 @@ class AuthServiceTest {
 		TokenRefreshRequest request = new TokenRefreshRequest();
 		request.setRefreshToken("invalid-refresh");
 
-		when(jwtTokenService.createRefreshToken()).thenReturn("new-token");
-		when(refreshTokenService.rotateToken("invalid-refresh", "new-token"))
+		when(refreshTokenService.loadValidToken("invalid-refresh"))
 			.thenThrow(new AuthException(AuthErrorCode.INVALID_REFRESH_TOKEN));
 
 		// when & then: 예외가 그대로 전달된다
 		assertThatThrownBy(() -> authService.refresh(request))
 			.isInstanceOf(AuthException.class)
 			.hasMessage(AuthErrorCode.INVALID_REFRESH_TOKEN.getMessage());
+	}
+
+	@Test
+	@DisplayName("전체 로그아웃 시각 이전의 리프레시 토큰은 재발급이 거부된다")
+	void refresh_shouldRejectTokenIssuedBeforeLogoutAll() {
+		// given
+		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder, userMapper);
+
+		TokenRefreshRequest request = new TokenRefreshRequest();
+		request.setRefreshToken("old-token");
+
+		RefreshTokenCache current = new RefreshTokenCache(
+			"old-token",
+			1L,
+			"device-1",
+			"ios",
+			"127.0.0.1",
+			1_735_000_000_000L,
+			1_735_000_600_000L,
+			1_735_000_000_000L
+		);
+		UUID uuid = UUID.randomUUID();
+		CustomUserDetails userDetails = mock(CustomUserDetails.class);
+		when(refreshTokenService.loadValidToken("old-token")).thenReturn(current);
+		when(userDetailsService.loadUserById(1L)).thenReturn(userDetails);
+		when(userDetails.getUuid()).thenReturn(uuid);
+		when(accessTokenBlacklistService.getLogoutAllAt(uuid.toString())).thenReturn(Instant.ofEpochMilli(1_735_000_100_000L));
+
+		// when & then
+		assertThatThrownBy(() -> authService.refresh(request))
+			.isInstanceOf(AuthException.class)
+			.hasMessage(AuthErrorCode.INVALID_REFRESH_TOKEN.getMessage());
+		verify(refreshTokenService).revokeToken("old-token");
 	}
 
 	@Test
@@ -253,5 +310,23 @@ class AuthServiceTest {
 
 		// then
 		verify(userDomainService).updatePassword(1L, "encodedNew");
+	}
+
+	@Test
+	@DisplayName("전체 로그아웃 시 사용자 refresh 토큰을 폐기하고 logout-all 기준 시각을 기록한다")
+	void logoutAll_shouldRevokeRefreshTokensAndMarkLogoutAll() {
+		// given
+		AuthService authService = new AuthService(authenticationManager, jwtTokenService, refreshTokenService, accessTokenBlacklistService, userDetailsService, userDomainService, passwordEncoder, userMapper);
+		UserEntity user = mock(UserEntity.class);
+		UUID uuid = UUID.randomUUID();
+		when(user.getId()).thenReturn(1L);
+		when(user.getUuid()).thenReturn(uuid);
+
+		// when
+		authService.logoutAll(user);
+
+		// then
+		verify(refreshTokenService).revokeAllByUserId(1L);
+		verify(accessTokenBlacklistService).markLogoutAll(eq(uuid.toString()), any(Instant.class));
 	}
 }

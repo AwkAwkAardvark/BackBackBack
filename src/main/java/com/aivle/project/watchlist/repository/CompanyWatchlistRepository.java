@@ -15,6 +15,8 @@ public interface CompanyWatchlistRepository extends JpaRepository<CompanyWatchli
 
 	@Query("""
 		select cw from CompanyWatchlistEntity cw
+		join fetch cw.company c
+		left join fetch c.industryCode
 		where cw.user.id = :userId and cw.deletedAt is null
 		order by cw.id desc
 		""")

@@ -1,6 +1,7 @@
 package com.aivle.project.company.service;
 
 import com.aivle.project.common.util.SimpleMultipartFile;
+import com.aivle.project.common.util.GetOrCreateResolver;
 import com.aivle.project.company.client.AiServerClient;
 import com.aivle.project.company.dto.AiAnalysisResponse;
 import com.aivle.project.company.entity.CompaniesEntity;
@@ -21,9 +22,9 @@ import com.aivle.project.report.entity.CompanyReportsEntity;
 import com.aivle.project.report.repository.CompanyReportMetricValuesRepository;
 import com.aivle.project.report.repository.CompanyReportVersionsRepository;
 import com.aivle.project.report.repository.CompanyReportsRepository;
+import com.aivle.project.report.service.CompanyReportVersionIssueService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,6 +52,7 @@ public class CompanyAiService {
     private final MetricsRepository metricsRepository;
     private final CompanyReportMetricValuesRepository companyReportMetricValuesRepository;
     private final AiReportRequestStatusService aiReportRequestStatusService;
+    private final CompanyReportVersionIssueService companyReportVersionIssueService;
 
     /**
      * 특정 기업의 AI 재무 분석 예측 결과를 조회하고 저장합니다.
@@ -167,26 +169,13 @@ public class CompanyAiService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기업 ID입니다: " + companyId));
 
             // 3. 타겟 분기 조회 또는 생성
-            QuartersEntity targetQuarterEntity = quartersRepository.findByYearAndQuarter((short) targetYear, (byte) targetQuarter)
-                .orElseGet(() -> createNewQuarter(targetYear, targetQuarter));
+            QuartersEntity targetQuarterEntity = getOrCreateQuarter(targetYear, targetQuarter);
 
             // 4. 리포트 조회 또는 생성
-            CompanyReportsEntity report = companyReportsRepository.findByCompanyIdAndQuarterId(company.getId(), targetQuarterEntity.getId())
-                .orElseGet(() -> companyReportsRepository.save(CompanyReportsEntity.create(company, targetQuarterEntity, null)));
+            CompanyReportsEntity report = getOrCreateReport(company, targetQuarterEntity);
 
-            // 5. 새 리포트 버전 생성
-            int nextVersionNo = companyReportVersionsRepository.findTopByCompanyReportOrderByVersionNoDesc(report)
-                .map(v -> v.getVersionNo() + 1)
-                .orElse(1);
-
-            CompanyReportVersionsEntity version = CompanyReportVersionsEntity.create(
-                report,
-                nextVersionNo,
-                LocalDateTime.now(),
-                true, // 예측 데이터는 즉시 활용 가능
-                null
-            );
-            companyReportVersionsRepository.save(version);
+            // 5. 새 리포트 버전 생성 (report row 잠금으로 version_no 충돌 방지)
+            CompanyReportVersionsEntity version = companyReportVersionIssueService.issueNextVersion(report, true, null);
 
             // 6. 지표 매핑 및 값 저장
             Map<String, Double> predictions = response.predictions();
@@ -265,33 +254,20 @@ public class CompanyAiService {
             storedFile.fileSize(),
             storedFile.contentType()
         );
-        filesRepository.save(filesEntity);
+        FilesEntity savedFileEntity = filesRepository.save(filesEntity);
 
         // 7. 분기 조회 또는 생성
-        QuartersEntity quarterEntity = quartersRepository.findByYearAndQuarter((short) targetYear, (byte) targetQuarter)
-            .orElseGet(() -> createNewQuarter(targetYear, targetQuarter));
+        QuartersEntity quarterEntity = getOrCreateQuarter(targetYear, targetQuarter);
 
         // 8. 기업-분기 보고서 조회 또는 생성
-        CompanyReportsEntity report = companyReportsRepository.findByCompanyIdAndQuarterId(company.getId(), quarterEntity.getId())
-            .orElseGet(() -> companyReportsRepository.save(CompanyReportsEntity.create(company, quarterEntity, null)));
+        CompanyReportsEntity report = getOrCreateReport(company, quarterEntity);
 
-        // 9. 새 버전 등록
-        int nextVersionNo = companyReportVersionsRepository.findTopByCompanyReportOrderByVersionNoDesc(report)
-            .map(v -> v.getVersionNo() + 1)
-            .orElse(1);
-
-        CompanyReportVersionsEntity version = CompanyReportVersionsEntity.create(
-            report,
-            nextVersionNo,
-            LocalDateTime.now(),
-            true, // 생성과 동시에 발행 상태로 설정
-            filesEntity
-        );
-        companyReportVersionsRepository.save(version);
+        // 9. 새 버전 등록 (report row 잠금으로 version_no 충돌 방지)
+        CompanyReportVersionsEntity version = companyReportVersionIssueService.issueNextVersion(report, true, savedFileEntity);
         log.info("Linked AI report to company_report_versions (ID: {}, Year: {}, Quarter: {}, Version: {})",
-            report.getId(), targetYear, targetQuarter, nextVersionNo);
+            report.getId(), targetYear, targetQuarter, version.getVersionNo());
 
-        return filesEntity;
+        return savedFileEntity;
     }
 
     /**
@@ -319,8 +295,9 @@ public class CompanyAiService {
         CompanyReportsEntity report = companyReportsRepository.findByCompanyIdAndQuarterId(company.getId(), quarterEntity.getId())
             .orElseThrow(() -> new IllegalArgumentException("해당 분기의 리포트가 존재하지 않습니다."));
 
-        CompanyReportVersionsEntity version = companyReportVersionsRepository.findTopByCompanyReportOrderByVersionNoDesc(report)
-            .orElseThrow(() -> new IllegalArgumentException("리포트 버전이 존재하지 않습니다."));
+        CompanyReportVersionsEntity version = companyReportVersionsRepository
+            .findTopByCompanyReportAndPdfFileIsNotNullOrderByVersionNoDesc(report)
+            .orElseThrow(() -> new IllegalArgumentException("해당 분기의 PDF 리포트가 존재하지 않습니다."));
 
         FilesEntity file = version.getPdfFile();
         if (file == null) {
@@ -356,8 +333,9 @@ public class CompanyAiService {
         CompanyReportsEntity report = companyReportsRepository.findByCompanyIdAndQuarterId(company.getId(), quarterEntity.getId())
             .orElseThrow(() -> new IllegalArgumentException("해당 분기의 리포트가 존재하지 않습니다."));
 
-        CompanyReportVersionsEntity version = companyReportVersionsRepository.findTopByCompanyReportOrderByVersionNoDesc(report)
-            .orElseThrow(() -> new IllegalArgumentException("리포트 버전이 존재하지 않습니다."));
+        CompanyReportVersionsEntity version = companyReportVersionsRepository
+            .findTopByCompanyReportAndPdfFileIsNotNullOrderByVersionNoDesc(report)
+            .orElseThrow(() -> new IllegalArgumentException("해당 분기의 PDF 리포트가 존재하지 않습니다."));
 
         FilesEntity file = version.getPdfFile();
         if (file == null) {
@@ -377,6 +355,22 @@ public class CompanyAiService {
 
         QuartersEntity newQuarter = QuartersEntity.create(year, quarter, quarterKey, startDate, endDate);
         return quartersRepository.save(newQuarter);
+    }
+
+    private QuartersEntity getOrCreateQuarter(int year, int quarter) {
+        return GetOrCreateResolver.resolve(
+            () -> quartersRepository.findByYearAndQuarter((short) year, (byte) quarter),
+            () -> createNewQuarter(year, quarter),
+            () -> quartersRepository.findByYearAndQuarter((short) year, (byte) quarter)
+        );
+    }
+
+    private CompanyReportsEntity getOrCreateReport(CompaniesEntity company, QuartersEntity quarter) {
+        return GetOrCreateResolver.resolve(
+            () -> companyReportsRepository.findByCompanyIdAndQuarterId(company.getId(), quarter.getId()),
+            () -> companyReportsRepository.save(CompanyReportsEntity.create(company, quarter, null)),
+            () -> companyReportsRepository.findByCompanyIdAndQuarterId(company.getId(), quarter.getId())
+        );
     }
 
     /**
@@ -425,22 +419,21 @@ public class CompanyAiService {
 
             log.info("Target quarter for report: year={}, quarter={}", targetYear, targetQuarter);
 
-            // PROCESSING 상태로 업데이트
-            aiReportRequestStatusService.updateProcessing(requestId);
-
-            // 해당 기업+분기의 보고서가 이미 존재하는지 확인
-            FilesEntity file;
+            String downloadUrl = "/api/companies/" + companyId + "/ai-report/download?year=" + targetYear + "&quarter=" + targetQuarter;
+            // 해당 기업+분기의 PDF 리포트가 이미 존재하면 바로 COMPLETED 처리
             try {
-                file = getReportFileById(companyId, targetYear, targetQuarter);
+                FilesEntity existingFile = getReportFileById(companyId, targetYear, targetQuarter);
                 log.info("Report already exists for companyId: {}, year: {}, quarter: {}", companyId, targetYear, targetQuarter);
+                aiReportRequestStatusService.updateCompleted(requestId, String.valueOf(existingFile.getId()), downloadUrl);
+                log.info("Completed async report generation for requestId: {} (existing file)", requestId);
+                return;
             } catch (IllegalArgumentException e) {
-                // 보고서가 없으면 새로 생성
                 log.info("Report not found. Generating new report for companyId: {}, year: {}, quarter: {}", companyId, targetYear, targetQuarter);
-                file = generateAndSaveReport(companyId, targetYear, targetQuarter);
             }
 
-            // COMPLETED 상태로 업데이트
-            String downloadUrl = "/api/companies/" + companyId + "/ai-report/download?year=" + targetYear + "&quarter=" + targetQuarter;
+            // 보고서가 없을 때만 PROCESSING -> 생성 -> COMPLETED 순서로 처리
+            aiReportRequestStatusService.updateProcessing(requestId);
+            FilesEntity file = generateAndSaveReport(companyId, targetYear, targetQuarter);
             aiReportRequestStatusService.updateCompleted(requestId, String.valueOf(file.getId()), downloadUrl);
 
             log.info("Completed async report generation for requestId: {}", requestId);
