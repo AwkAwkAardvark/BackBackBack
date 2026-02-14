@@ -7,6 +7,7 @@ import com.aivle.project.comment.dto.CommentCreateRequest;
 import com.aivle.project.comment.dto.CommentResponse;
 import com.aivle.project.comment.service.CommentsService;
 import com.aivle.project.common.config.TestSecurityConfig;
+import com.aivle.project.common.util.NameMaskingUtil;
 import com.aivle.project.post.entity.PostStatus;
 import com.aivle.project.post.entity.PostsEntity;
 import com.aivle.project.user.entity.UserEntity;
@@ -62,13 +63,13 @@ class CommentIntegrationTest {
 
 		CommentResponse root = responses.get(0);
 		assertThat(root.id()).isEqualTo(parentResponse.id());
-		assertThat(root.name()).isEqualTo("댓글러");
+		assertThat(root.name()).isEqualTo(NameMaskingUtil.mask("댓글러"));
 		assertThat(root.depth()).isZero();
 
 		CommentResponse reply = responses.get(1);
 		assertThat(reply.id()).isEqualTo(childResponse.id());
 		assertThat(reply.parentId()).isEqualTo(parentResponse.id());
-		assertThat(reply.name()).isEqualTo("작성자");
+		assertThat(reply.name()).isEqualTo(NameMaskingUtil.mask("작성자"));
 		assertThat(reply.depth()).isEqualTo(1);
 	}
 

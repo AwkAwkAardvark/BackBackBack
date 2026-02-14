@@ -31,9 +31,7 @@ public class CommentsService {
 	private final com.aivle.project.post.mapper.PostMapper postMapper;
 
 	@Transactional(readOnly = true)
-	public List<CommentResponse> listByPost(Long postId, UserEntity user) {
-		PostsEntity post = findPost(postId);
-		postReadAccessPolicy.validateReadable(post, user);
+	public List<CommentResponse> listByPost(Long postId) {
 		return commentsRepository.findByPostIdAndDeletedAtIsNullOrderByDepthAscSequenceAsc(postId).stream()
 			.map(commentMapper::toResponse)
 			.toList();

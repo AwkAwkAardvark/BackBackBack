@@ -64,6 +64,7 @@ public class AuthController {
 			content = @Content(schema = @Schema(implementation = AuthLoginResponse.class))),
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청값 오류"),
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "로그인 시도 제한"),
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류")
 	})
 	public ResponseEntity<ApiResponse<AuthLoginResponse>> login(

@@ -5,6 +5,10 @@ app:
     cookie:
       secure: true
       same-site: None
+    login-attempt:
+      max-failures: ${APP_AUTH_LOGIN_MAX_FAILURES:5}
+      lock-duration: ${APP_AUTH_LOGIN_LOCK_DURATION:15m}
+      failure-window: ${APP_AUTH_LOGIN_FAILURE_WINDOW:15m}
   email:
     verification:
       skip: ${APP_EMAIL_VERIFICATION_SKIP:false}

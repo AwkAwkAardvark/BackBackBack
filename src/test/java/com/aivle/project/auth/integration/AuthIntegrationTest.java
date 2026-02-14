@@ -16,7 +16,7 @@ import com.aivle.project.auth.dto.TokenResponse;
 import com.aivle.project.auth.service.TurnstileService;
 import com.aivle.project.common.dto.ApiResponse;
 import com.aivle.project.common.config.TestSecurityConfig;
-import com.aivle.project.common.security.TokenHashService;
+import com.aivle.project.common.util.NameMaskingUtil;
 import com.aivle.project.user.entity.RoleEntity;
 import com.aivle.project.user.entity.RoleName;
 import com.aivle.project.user.entity.UserEntity;
@@ -160,7 +160,7 @@ class AuthIntegrationTest {
 		// then: 사용자 정보가 포함되어 있다
 		assertThat(response.user()).isNotNull();
 		assertThat(response.user().email()).isEqualTo("user@test.com");
-		assertThat(response.user().name()).isEqualTo("test-user");
+		assertThat(response.user().name()).isEqualTo(NameMaskingUtil.mask("test-user"));
 		assertThat(response.user().role()).isEqualTo(RoleName.ROLE_USER);
 
 		// then: 리프레시 토큰이 쿠키에 포함되어 있다
@@ -180,6 +180,55 @@ class AuthIntegrationTest {
 		String sessionKey = "sessions:" + user.getId();
 		assertThat(redisTemplate.opsForValue().get(refreshKey)).isNotNull();
 		assertThat(redisTemplate.opsForSet().isMember(sessionKey, refreshTokenHash)).isTrue();
+	}
+
+	@Test
+	@DisplayName("로그인 5회 실패 시 잠금되고 잠금 중에는 올바른 비밀번호도 429를 반환한다")
+	void login_shouldLockAfterFiveFailures() throws Exception {
+		// given
+		createActiveUserWithRole("locked-user@test.com", "password", RoleName.ROLE_USER);
+		LoginRequest wrongRequest = new LoginRequest();
+		wrongRequest.setEmail("locked-user@test.com");
+		wrongRequest.setPassword("wrong-password");
+
+		// when: 4회까지는 401
+		for (int i = 0; i < 4; i++) {
+			mockMvc.perform(post("/api/auth/login")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(objectMapper.writeValueAsString(wrongRequest)))
+				.andExpect(status().isUnauthorized());
+		}
+
+		// when: 5회째는 잠금(429)
+		MvcResult lockedResult = mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(wrongRequest)))
+			.andExpect(status().isTooManyRequests())
+			.andReturn();
+
+		// then
+		ApiResponse<Void> lockedResponse = objectMapper.readValue(
+			lockedResult.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<Void>>() {}
+		);
+		assertThat(lockedResponse.error().code()).isEqualTo("AUTH_429");
+
+		// when: 잠금 중 올바른 비밀번호로 재시도
+		LoginRequest correctRequest = new LoginRequest();
+		correctRequest.setEmail("locked-user@test.com");
+		correctRequest.setPassword("password");
+		MvcResult retryResult = mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(correctRequest)))
+			.andExpect(status().isTooManyRequests())
+			.andReturn();
+
+		// then
+		ApiResponse<Void> retryResponse = objectMapper.readValue(
+			retryResult.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<Void>>() {}
+		);
+		assertThat(retryResponse.error().code()).isEqualTo("AUTH_429");
 	}
 
 	@Test

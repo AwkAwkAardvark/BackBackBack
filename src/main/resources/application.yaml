@@ -56,9 +56,11 @@ springdoc:
 app:
   api:
     version: v1
-  security:
-    token-hash:
-      pepper-base64: ${APP_TOKEN_HASH_PEPPER_B64:}
+  auth:
+    login-attempt:
+      max-failures: ${APP_AUTH_LOGIN_MAX_FAILURES:5}
+      lock-duration: ${APP_AUTH_LOGIN_LOCK_DURATION:15m}
+      failure-window: ${APP_AUTH_LOGIN_FAILURE_WINDOW:15m}
   virtual-thread:
     enabled: ${APP_VIRTUAL_THREAD_ENABLED:false}
     insight-enabled: ${APP_VIRTUAL_THREAD_INSIGHT_ENABLED:false}

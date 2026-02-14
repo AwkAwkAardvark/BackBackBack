@@ -1,18 +1,23 @@
 package com.aivle.project.post.mapper;
 
 import com.aivle.project.comment.entity.CommentsEntity;
+import com.aivle.project.common.util.NameMaskingUtil;
 import com.aivle.project.post.dto.PostResponse;
 import com.aivle.project.post.dto.QaReplyResponse;
 import com.aivle.project.post.entity.PostsEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
+import org.mapstruct.Named;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.List;
 
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public abstract class PostMapper {
 
 	// 계산된 조회수 및 isPinned 필드를 응답 규격에 맞게 매핑한다.
-	@Mapping(target = "name", source = "user.name")
+	@Mapping(target = "name", source = "user.name", qualifiedByName = "maskName")
 	@Mapping(target = "categoryId", source = "category.id")
 	@Mapping(target = "viewCount", source = "viewCount")
 	@Mapping(target = "isPinned", source = "pinned")
@@ -41,7 +46,20 @@ public abstract class PostMapper {
 			.build();
 	}
 
-	@Mapping(target = "name", source = "user.name")
+	@Mapping(target = "name", source = "user.name", qualifiedByName = "maskName")
 	@Mapping(target = "postId", source = "post.id")
 	public abstract QaReplyResponse toQaReplyResponse(CommentsEntity comment);
+
+	@Named("maskName")
+	protected String maskName(String name) {
+		return NameMaskingUtil.mask(name);
+	}
+
+	private boolean isAdminComment(CommentsEntity comment) {
+		if (comment.getUser() == null) return false;
+		
+		List<UserRoleEntity> userRoles = userRoleRepository.findAllByUserId(comment.getUser().getId());
+		return userRoles.stream()
+			.anyMatch(ur -> ur.getRole().getName() == RoleName.ROLE_ADMIN);
+	}
 }
