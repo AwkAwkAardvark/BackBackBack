@@ -7,18 +7,22 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.Arrays;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * API 요청/응답 로깅을 위한 Aspect.
@@ -28,6 +32,16 @@ import java.util.stream.Collectors;
 @Slf4j
 @RequiredArgsConstructor
 public class ApiLoggingAspect {
+
+	private static final String MASKED_VALUE = "\"****\"";
+	private static final String COOKIE_MASKED_VALUE = "\"[COOKIE_MASKED]\"";
+	private static final Pattern JWT_PATTERN = Pattern.compile("^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$");
+	private static final Pattern BEARER_PATTERN = Pattern.compile("(?i)^Bearer\\s+.+$");
+	private static final Pattern COOKIE_PAIR_PATTERN = Pattern.compile("(?i)\\b([a-z0-9_-]+)\\s*=\\s*[^;]+");
+	private static final Pattern SENSITIVE_COOKIE_KEY_PATTERN = Pattern.compile("(?i).*(token|session|auth|jwt|csrf|cookie).*");
+	private static final Pattern SENSITIVE_JSON_PATTERN = Pattern.compile(
+		"\"(?i)([^\"\\\\]*(password|token|secret|credential|authorization|cookie|session|jwt|csrf|name|phone|ssn|creditcard)[^\"\\\\]*)\"\\s*:\\s*\"[^\"]*\""
+	);
 
 	private final ObjectMapper objectMapper;
 
@@ -49,7 +63,7 @@ public class ApiLoggingAspect {
 			log.info("API Request: [{} {}] | Method: {}.{} | Args: {} | Time: {}ms | RequestId: {}",
 				request.getMethod(), request.getRequestURI(),
 				joinPoint.getSignature().getDeclaringTypeName(), joinPoint.getSignature().getName(),
-				getMaskedArgs(joinPoint.getArgs()), (end - start), requestId);
+				getMaskedArgs(joinPoint, joinPoint.getArgs()), (end - start), requestId);
 
 			return result;
 		} catch (Throwable e) {
@@ -64,14 +78,49 @@ public class ApiLoggingAspect {
 		}
 	}
 
-	private String getMaskedArgs(Object[] args) {
+	private String getMaskedArgs(ProceedingJoinPoint joinPoint, Object[] args) {
 		if (args == null || args.length == 0) {
 			return "[]";
 		}
 
-		return Arrays.stream(args)
-			.map(this::mask)
+		Method method = resolveMethod(joinPoint);
+		return IntStream.range(0, args.length)
+			.mapToObj(index -> mask(args[index], isCookieValueParameter(method, index)))
 			.collect(Collectors.joining(", ", "[", "]"));
+	}
+
+	String maskArgsForLog(Method method, Object[] args) {
+		if (args == null || args.length == 0) {
+			return "[]";
+		}
+		return IntStream.range(0, args.length)
+			.mapToObj(index -> mask(args[index], isCookieValueParameter(method, index)))
+			.collect(Collectors.joining(", ", "[", "]"));
+	}
+
+	private Method resolveMethod(ProceedingJoinPoint joinPoint) {
+		if (!(joinPoint.getSignature() instanceof MethodSignature methodSignature)) {
+			return null;
+		}
+		return methodSignature.getMethod();
+	}
+
+	private boolean isCookieValueParameter(Method method, int parameterIndex) {
+		if (method == null) {
+			return false;
+		}
+		Parameter[] parameters = method.getParameters();
+		if (parameterIndex < 0 || parameterIndex >= parameters.length) {
+			return false;
+		}
+		return parameters[parameterIndex].isAnnotationPresent(CookieValue.class);
+	}
+
+	String mask(Object arg, boolean cookieValueParameter) {
+		if (cookieValueParameter) {
+			return COOKIE_MASKED_VALUE;
+		}
+		return mask(arg);
 	}
 
 	String mask(Object arg) {
@@ -118,14 +167,28 @@ public class ApiLoggingAspect {
 	}
 
 	private String maskString(String str) {
+		String normalized = str.trim();
+
+		if (BEARER_PATTERN.matcher(normalized).matches()) {
+			return "\"Bearer ****\"";
+		}
+
+		if (JWT_PATTERN.matcher(normalized).matches()) {
+			return MASKED_VALUE;
+		}
+
+		if (containsSensitiveCookiePair(normalized)) {
+			return COOKIE_MASKED_VALUE;
+		}
+
 		// 이메일 형식 마스킹
-		if (str.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
-			return "\"" + maskEmail(str) + "\"";
+		if (normalized.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+			return "\"" + maskEmail(normalized) + "\"";
 		}
 
 		// 비밀번호 패턴 마스킹 (길이 8 이상, 특수문자 포함)
-		if (str.length() > 8 && str.matches(".*[!@#$%^&*].*")) {
-			return "\"****\"";
+		if (normalized.length() > 8 && normalized.matches(".*[!@#$%^&*].*")) {
+			return MASKED_VALUE;
 		}
 
 		// 일반 문자열은 JSON 문자열로 변환하여 반환
@@ -160,9 +223,24 @@ public class ApiLoggingAspect {
 		json = sb.toString();
 
 		// 대소문자 구분 없이 민감한 필드 마스킹
-		return json.replaceAll(
-			"\"(?i)(password|accessToken|refreshToken|token|secret|credentials|authorization|name|phone|ssn|creditCard)\"\\s*:\\s*\"[^\"]*\"",
-			"\"$1\":\"****\""
-		);
+		Matcher sensitiveMatcher = SENSITIVE_JSON_PATTERN.matcher(json);
+		StringBuffer result = new StringBuffer();
+		while (sensitiveMatcher.find()) {
+			String replacement = "\"" + sensitiveMatcher.group(1) + "\":\"****\"";
+			sensitiveMatcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+		}
+		sensitiveMatcher.appendTail(result);
+		return result.toString();
+	}
+
+	private boolean containsSensitiveCookiePair(String value) {
+		Matcher matcher = COOKIE_PAIR_PATTERN.matcher(value);
+		while (matcher.find()) {
+			String key = matcher.group(1);
+			if (SENSITIVE_COOKIE_KEY_PATTERN.matcher(key).matches()) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
