@@ -4,11 +4,17 @@ import com.aivle.project.company.dto.AiAnalysisResponse;
 import com.aivle.project.company.dto.AiCommentResponse;
 import com.aivle.project.company.dto.AiHealthScoreResponse;
 import com.aivle.project.company.dto.AiSignalResponse;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriBuilder;
@@ -20,19 +26,38 @@ public class AiServerClient {
     private final WebClient webClient;
     private final boolean mockEnabled;
     private final long mockLatencyMs;
+    private final Duration callTimeout;
 
+    @Autowired
     public AiServerClient(
-        @Value("${ai.server.url}") String aiServerUrl,
+        @Qualifier("aiWebClient") WebClient aiWebClient,
         @Value("${ai.server.mock.enabled:false}") boolean mockEnabled,
-        @Value("${ai.server.mock.latency-ms:0}") long mockLatencyMs
+        @Value("${ai.server.mock.latency-ms:0}") long mockLatencyMs,
+        @Value("${ai.server.http.call-timeout-ms:10000}") long callTimeoutMs
     ) {
-        this.webClient = WebClient.builder()
-                .baseUrl(aiServerUrl)
-                .build();
-        this.mockEnabled = mockEnabled;
-        this.mockLatencyMs = mockLatencyMs;
+        this(aiWebClient, mockEnabled, mockLatencyMs, Duration.ofMillis(callTimeoutMs));
     }
 
+    // 테스트 코드 호환을 위해 URL 기반 생성자를 유지한다.
+    AiServerClient(String aiServerUrl, boolean mockEnabled, long mockLatencyMs) {
+        this(WebClient.builder().baseUrl(aiServerUrl).build(), mockEnabled, mockLatencyMs, Duration.ofMillis(10000L));
+    }
+
+    // 타임아웃 테스트를 위한 생성자.
+    AiServerClient(String aiServerUrl, boolean mockEnabled, long mockLatencyMs, long callTimeoutMs) {
+        this(WebClient.builder().baseUrl(aiServerUrl).build(), mockEnabled, mockLatencyMs, Duration.ofMillis(callTimeoutMs));
+    }
+
+    private AiServerClient(WebClient webClient, boolean mockEnabled, long mockLatencyMs, Duration callTimeout) {
+        this.webClient = webClient;
+        this.mockEnabled = mockEnabled;
+        this.mockLatencyMs = mockLatencyMs;
+        this.callTimeout = callTimeout;
+    }
+
+    @CircuitBreaker(name = "aiServer")
+    @Retry(name = "aiServer")
+    @Bulkhead(name = "aiServer", type = Bulkhead.Type.SEMAPHORE)
     public AiAnalysisResponse getPrediction(String companyCode) {
         log.info("Requesting AI prediction for company: {}", companyCode);
 
@@ -42,17 +67,19 @@ public class AiServerClient {
         }
 
         try {
-            return webClient.get()
-                    .uri("/api/v1/analysis/{companyCode}/predict", companyCode)
-                    .retrieve()
-                    .bodyToMono(AiAnalysisResponse.class)
-                    .block();
+            return getWithTimeout(
+                builder -> builder.path("/api/v1/analysis/{companyCode}/predict").build(companyCode),
+                AiAnalysisResponse.class
+            );
         } catch (Exception e) {
             log.error("Failed to get prediction for company {}: {}", companyCode, e.getMessage());
             throw new RuntimeException("AI Server connection failed", e);
         }
     }
 
+    @CircuitBreaker(name = "aiServer")
+    @Retry(name = "aiServer")
+    @Bulkhead(name = "aiServer", type = Bulkhead.Type.SEMAPHORE)
     public byte[] getAnalysisReportPdf(String companyCode) {
         log.info("Downloading AI analysis report PDF for company: {}", companyCode);
 
@@ -62,17 +89,19 @@ public class AiServerClient {
         }
 
         try {
-            return webClient.get()
-                    .uri("/api/v1/analysis/{companyCode}/report", companyCode)
-                    .retrieve()
-                    .bodyToMono(byte[].class)
-                    .block();
+            return getWithTimeout(
+                builder -> builder.path("/api/v1/analysis/{companyCode}/report").build(companyCode),
+                byte[].class
+            );
         } catch (Exception e) {
             log.error("Failed to download report for company {}: {}", companyCode, e.getMessage());
             throw new RuntimeException("AI Server report download failed", e);
         }
     }
 
+    @CircuitBreaker(name = "aiServer")
+    @Retry(name = "aiServer")
+    @Bulkhead(name = "aiServer", type = Bulkhead.Type.SEMAPHORE)
     public AiHealthScoreResponse getHealthScore(String companyCode) {
         log.info("Requesting AI health score for company: {}", companyCode);
 
@@ -82,17 +111,19 @@ public class AiServerClient {
         }
 
         try {
-            return webClient.get()
-                    .uri("/api/v1/analysis/{companyCode}/health-score", companyCode)
-                    .retrieve()
-                    .bodyToMono(AiHealthScoreResponse.class)
-                    .block();
+            return getWithTimeout(
+                builder -> builder.path("/api/v1/analysis/{companyCode}/health-score").build(companyCode),
+                AiHealthScoreResponse.class
+            );
         } catch (Exception e) {
             log.error("Failed to get health score for company {}: {}", companyCode, e.getMessage());
             throw new RuntimeException("AI Server connection failed", e);
         }
     }
 
+    @CircuitBreaker(name = "aiServer")
+    @Retry(name = "aiServer")
+    @Bulkhead(name = "aiServer", type = Bulkhead.Type.SEMAPHORE)
     public AiSignalResponse getSignals(String companyCode, String period) {
         log.info("Requesting AI signals for company: {} (period: {})", companyCode, period);
 
@@ -102,17 +133,20 @@ public class AiServerClient {
         }
 
         try {
-            return webClient.get()
-                    .uri("/api/v1/analysis/{companyCode}/signals/{period}", companyCode, period)
-                    .retrieve()
-                    .bodyToMono(AiSignalResponse.class)
-                    .block();
+            return getWithTimeout(
+                builder -> builder.path("/api/v1/analysis/{companyCode}/signals/{period}")
+                    .build(companyCode, period),
+                AiSignalResponse.class
+            );
         } catch (Exception e) {
             log.error("Failed to get signals for company {}: {}", companyCode, e.getMessage());
             throw new RuntimeException("AI Server connection failed", e);
         }
     }
 
+    @CircuitBreaker(name = "aiServer")
+    @Retry(name = "aiServer")
+    @Bulkhead(name = "aiServer", type = Bulkhead.Type.SEMAPHORE)
     public AiCommentResponse getAiComment(String companyCode, String period) {
         log.info("Requesting AI comment for company: {} (period: {})", companyCode, period);
 
@@ -122,11 +156,7 @@ public class AiServerClient {
         }
 
         try {
-            return webClient.get()
-                .uri(uriBuilder -> buildAiCommentUri(uriBuilder, companyCode, period))
-                .retrieve()
-                .bodyToMono(AiCommentResponse.class)
-                .block();
+            return getWithTimeout(uriBuilder -> buildAiCommentUri(uriBuilder, companyCode, period), AiCommentResponse.class);
         } catch (Exception e) {
             log.error("Failed to get AI comment for company {}: {}", companyCode, e.getMessage());
             throw new RuntimeException("AI Server connection failed", e);
@@ -139,6 +169,15 @@ public class AiServerClient {
             builder.queryParam("period", period);
         }
         return builder.build(companyCode);
+    }
+
+    private <T> T getWithTimeout(java.util.function.Function<UriBuilder, java.net.URI> uriFunction, Class<T> responseType) {
+        return webClient.get()
+            .uri(uriFunction)
+            .retrieve()
+            .bodyToMono(responseType)
+            .timeout(callTimeout)
+            .block();
     }
 
     private void applyMockLatency() {

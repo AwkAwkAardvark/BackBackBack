@@ -78,6 +78,32 @@ class AiServerClientTest {
                 .hasMessageContaining("AI Server connection failed");
     }
 
+	@Test
+	@DisplayName("AI 서버 응답이 call-timeout을 초과하면 예외가 발생한다")
+	void getPrediction_Timeout() {
+		// given
+		String mockResponseBody = """
+			{
+			  "company_code": "[005930]",
+			  "company_name": "삼성전자",
+			  "base_period": "2025년 Q3",
+			  "predictions": {
+			    "ROA": 1.3982
+			  }
+			}
+			""";
+		AiServerClient timeoutClient = new AiServerClient(mockWebServer.url("/").toString(), false, 0, 100);
+		mockWebServer.enqueue(new MockResponse()
+			.setBody(mockResponseBody)
+			.addHeader("Content-Type", "application/json")
+			.setBodyDelay(500, TimeUnit.MILLISECONDS));
+
+		// when & then
+		assertThatThrownBy(() -> timeoutClient.getPrediction("005930"))
+			.isInstanceOf(RuntimeException.class)
+			.hasMessageContaining("AI Server connection failed");
+	}
+
     @Test
     @DisplayName("AI 서버에서 리포트 PDF를 정상적으로 다운로드한다")
     void getAnalysisReportPdf_Success() {

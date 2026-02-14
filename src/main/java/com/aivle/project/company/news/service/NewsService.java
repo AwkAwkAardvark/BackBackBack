@@ -41,8 +41,8 @@ public class NewsService {
      * @param stockCode 기업 코드 (stock_code)
      * @return 저장된 뉴스 분석 정보
      */
-    @Transactional
-    public NewsAnalysisResponse fetchAndStoreNews(String stockCode) {
+	    @Transactional
+	    public NewsAnalysisResponse fetchAndStoreNews(String stockCode) {
         // 1. stockCode로 기업 조회
         CompaniesEntity company = companiesRepository.findByStockCode(stockCode)
                 .orElseThrow(() -> new IllegalArgumentException("Company not found for stockCode: " + stockCode));
@@ -50,7 +50,7 @@ public class NewsService {
         log.info("Fetching news for company: {} ({})", company.getCorpName(), stockCode);
 
         // 2. AI 서버 API 호출
-        NewsApiResponse apiResponse = fetchNewsWithRetry(stockCode, company.getCorpName());
+	        NewsApiResponse apiResponse = fetchNewsOrThrow(stockCode, company.getCorpName());
 
         // 3. 분석 엔티티 생성 및 저장
         com.aivle.project.company.news.entity.NewsAnalysisEntity analysis =
@@ -91,29 +91,13 @@ public class NewsService {
 		return new NewsRefreshResponse(latest != null ? latest : analysis, repaired);
 	}
 
-    private NewsApiResponse fetchNewsWithRetry(String stockCode, String companyName) {
-        int maxAttempts = 3;
-        long delayMillis = 500L;
-        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-            NewsApiResponse response = newsClient.fetchNews(stockCode, companyName);
-            if (response != null && response.news() != null && !response.news().isEmpty()) {
-                return response;
-            }
-            if (attempt < maxAttempts) {
-                sleep(delayMillis);
-            }
-        }
-        return newsClient.fetchNews(stockCode, companyName);
-    }
-
-    private void sleep(long delayMillis) {
-        try {
-            Thread.sleep(delayMillis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Retry sleep interrupted", e);
-        }
-    }
+	private NewsApiResponse fetchNewsOrThrow(String stockCode, String companyName) {
+		NewsApiResponse response = newsClient.fetchNews(stockCode, companyName);
+		if (response == null) {
+			throw new IllegalStateException("AI news response is null for stockCode: " + stockCode);
+		}
+		return response;
+	}
 
     /**
      * 특정 기업의 최신 뉴스를 조회합니다.

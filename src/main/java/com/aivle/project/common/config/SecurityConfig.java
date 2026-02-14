@@ -73,6 +73,7 @@ public class SecurityConfig {
 		"/openapi/**",
 		"/actuator/health",
 		"/actuator/health/**",
+		"/actuator/prometheus",
 		"/error"
 	};
 

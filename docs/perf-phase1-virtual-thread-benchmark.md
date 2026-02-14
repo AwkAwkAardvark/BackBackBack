@@ -42,6 +42,8 @@
 - `perf/results/<run_id>/after/runtime-metrics.csv`
 - `perf/results/<run_id>/after/runtime-metrics-summary.md`
 - `perf/results/<run_id>/comparison-summary.md`
+- `perf/results/<run_id>/comparison-api-delta.csv`
+- `perf/results/<run_id>/comparison-runtime-delta.csv`
 
 ## 5. 시나리오
 
@@ -56,3 +58,5 @@
 - `run-before.sh`/`run-after.sh`는 내부적으로 서버를 기동/종료합니다.
 - 결과 비교는 동일 `run_id`를 사용해야 합니다.
 - `comparison-summary.md`에는 응답시간/TPS와 함께 런타임 계측(before/after) 비교가 포함됩니다.
+- `runtime-metrics.csv`에는 시스템 지표 외에 `resilience4j`(circuit breaker/retry/bulkhead) 관련 지표가 함께 수집됩니다.
+- CSV 산출물(`comparison-api-delta.csv`, `comparison-runtime-delta.csv`)을 사용해 전/후 정량 비교를 데이터로 바로 전달할 수 있습니다.

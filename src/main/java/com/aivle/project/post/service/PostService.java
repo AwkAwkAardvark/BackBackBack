@@ -2,6 +2,7 @@ package com.aivle.project.post.service;
 
 import com.aivle.project.category.entity.CategoriesEntity;
 import com.aivle.project.category.repository.CategoriesRepository;
+import com.aivle.project.comment.repository.CommentsRepository;
 import com.aivle.project.common.dto.PageRequest;
 import com.aivle.project.common.dto.PageResponse;
 import com.aivle.project.common.error.CommonErrorCode;
@@ -22,9 +23,14 @@ import com.aivle.project.post.entity.PostsEntity;
 import com.aivle.project.post.entity.PostViewCountsEntity;
 import com.aivle.project.post.repository.PostViewCountsRepository;
 import com.aivle.project.post.repository.PostsRepository;
+import com.aivle.project.user.entity.RoleName;
 import com.aivle.project.user.entity.UserEntity;
 import com.aivle.project.user.repository.UserRepository;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
@@ -42,6 +48,7 @@ public class PostService {
 	private final PostViewCountsRepository postViewCountsRepository;
 	private final CategoriesRepository categoriesRepository;
 	private final UserRepository userRepository;
+	private final CommentsRepository commentsRepository;
 	private final com.aivle.project.post.mapper.PostMapper postMapper;
 	private final PostFilesRepository postFilesRepository;
 	private final FileMapper fileMapper;
@@ -70,8 +77,11 @@ public class PostService {
 				categoryName, PostStatus.PUBLISHED, pageRequest.toPageable()
 			);
 		}
-		
-		return PageResponse.of(page.map(postMapper::toResponse));
+
+		Map<Long, String> qnaStatusByPostId = resolveQnaStatusByPosts(page.getContent());
+		return PageResponse.of(
+			page.map(post -> postMapper.toResponseWithQnaStatus(post, qnaStatusByPostId.get(post.getId())))
+		);
 	}
 
 	/**
@@ -88,7 +98,7 @@ public class PostService {
 			validateOwner(post, user.getId());
 		}
 
-		PostResponse response = postMapper.toResponse(post);
+		PostResponse response = toResponseWithQnaStatus(post);
 		boolean downloadable = user != null && user.getId() != null;
 		List<PostFileResponse> files = postFilesRepository.findAllActiveByPostIdOrderByCreatedAtAsc(postId).stream()
 			.map(mapping -> fileMapper.toResponse(postId, mapping.getFile()))
@@ -133,7 +143,7 @@ public class PostService {
 			validateOwner(post, user.getId());
 		}
 
-		PostResponse response = postMapper.toResponse(post);
+		PostResponse response = toResponseWithQnaStatus(post);
 		boolean downloadable = user != null && user.getId() != null;
 		List<PostFileResponse> files = postFilesRepository.findAllActiveByPostIdOrderByCreatedAtAsc(postId).stream()
 			.map(mapping -> fileMapper.toResponse(postId, mapping.getFile()))
@@ -182,7 +192,7 @@ public class PostService {
 
 		PostsEntity saved = postsRepository.save(post);
 		postViewCountsRepository.save(PostViewCountsEntity.create(saved));
-		return postMapper.toResponse(saved);
+		return toResponseWithQnaStatus(saved);
 	}
 
 	/**
@@ -196,7 +206,7 @@ public class PostService {
 		String nextContent = request.getContent() != null ? request.getContent().trim() : post.getContent();
 
 		post.update(nextTitle, nextContent, post.getCategory(), null, null);
-		return postMapper.toResponse(post);
+		return toResponseWithQnaStatus(post);
 	}
 
 	/**
@@ -210,7 +220,7 @@ public class PostService {
 		String nextContent = request.getContent() != null ? request.getContent().trim() : post.getContent();
 
 		post.update(nextTitle, nextContent, post.getCategory(), null, null);
-		return postMapper.toResponse(post);
+		return toResponseWithQnaStatus(post);
 	}
 
 	/**
@@ -243,7 +253,10 @@ public class PostService {
 		Page<PostsEntity> page = postsRepository.findAllByCategoryNameAndDeletedAtIsNullOrderByCreatedAtDesc(
 			categoryName, pageRequest.toPageable()
 		);
-		return PageResponse.of(page.map(postMapper::toResponse));
+		Map<Long, String> qnaStatusByPostId = resolveQnaStatusByPosts(page.getContent());
+		return PageResponse.of(
+			page.map(post -> postMapper.toResponseWithQnaStatus(post, qnaStatusByPostId.get(post.getId())))
+		);
 	}
 
 	/**
@@ -252,7 +265,7 @@ public class PostService {
 	@Transactional(readOnly = true)
 	public PostResponse getAdmin(String categoryName, Long postId) {
 		PostsEntity post = findPostInBoard(postId, categoryName);
-		return postMapper.toResponse(post);
+		return toResponseWithQnaStatus(post);
 	}
 
 	/**
@@ -272,7 +285,7 @@ public class PostService {
 
 		PostsEntity saved = postsRepository.save(post);
 		postViewCountsRepository.save(PostViewCountsEntity.create(saved));
-		return postMapper.toResponse(saved);
+		return toResponseWithQnaStatus(saved);
 	}
 
 	/**
@@ -285,7 +298,7 @@ public class PostService {
 		String nextContent = request.getContent() != null ? request.getContent().trim() : post.getContent();
 
 		post.update(nextTitle, nextContent, post.getCategory(), request.getIsPinned(), request.getStatus());
-		return postMapper.toResponse(post);
+		return toResponseWithQnaStatus(post);
 	}
 
 	/**
@@ -336,6 +349,38 @@ public class PostService {
 			throw new CommonException(CommonErrorCode.COMMON_403);
 		}
 		return user.getId();
+	}
+
+	private PostResponse toResponseWithQnaStatus(PostsEntity post) {
+		if (!isQnaCategory(post) || post.getId() == null) {
+			return postMapper.toResponse(post);
+		}
+		boolean answered = commentsRepository.countByPostIdAndRole(post.getId(), RoleName.ROLE_ADMIN) > 0;
+		String qnaStatus = answered ? "answered" : "pending";
+		return postMapper.toResponseWithQnaStatus(post, qnaStatus);
+	}
+
+	private Map<Long, String> resolveQnaStatusByPosts(List<PostsEntity> posts) {
+		List<Long> qnaPostIds = posts.stream()
+			.filter(this::isQnaCategory)
+			.map(PostsEntity::getId)
+			.filter(Objects::nonNull)
+			.toList();
+
+		if (qnaPostIds.isEmpty()) {
+			return Map.of();
+		}
+
+		Set<Long> answeredPostIds = commentsRepository.findAnsweredPostIdsByPostIdsAndRole(qnaPostIds, RoleName.ROLE_ADMIN);
+		Map<Long, String> qnaStatusByPostId = new HashMap<>();
+		for (Long qnaPostId : qnaPostIds) {
+			qnaStatusByPostId.put(qnaPostId, answeredPostIds.contains(qnaPostId) ? "answered" : "pending");
+		}
+		return qnaStatusByPostId;
+	}
+
+	private boolean isQnaCategory(PostsEntity post) {
+		return post.getCategory() != null && "qna".equalsIgnoreCase(post.getCategory().getName());
 	}
 
 	private UserEntity getCurrentUserOrThrow() {

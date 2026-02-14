@@ -3,12 +3,15 @@ package com.aivle.project.post.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.aivle.project.category.entity.CategoriesEntity;
 import com.aivle.project.category.repository.CategoriesRepository;
+import com.aivle.project.comment.repository.CommentsRepository;
 import com.aivle.project.common.dto.PageRequest;
 import com.aivle.project.common.dto.PageResponse;
 import com.aivle.project.common.error.CommonErrorCode;
@@ -30,10 +33,12 @@ import com.aivle.project.post.entity.PostsEntity;
 import com.aivle.project.post.entity.PostViewCountsEntity;
 import com.aivle.project.post.repository.PostViewCountsRepository;
 import com.aivle.project.post.repository.PostsRepository;
+import com.aivle.project.user.entity.RoleName;
 import com.aivle.project.user.entity.UserEntity;
 import com.aivle.project.user.entity.UserStatus;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -62,6 +67,9 @@ class PostServiceTest {
 	private CategoriesRepository categoriesRepository;
 
 	@Mock
+	private CommentsRepository commentsRepository;
+
+	@Mock
 	private com.aivle.project.post.mapper.PostMapper postMapper;
 
 	@Mock
@@ -84,7 +92,8 @@ class PostServiceTest {
 		given(categoriesRepository.findByNameAndDeletedAtIsNull("notices")).willReturn(Optional.of(category));
 		given(postsRepository.findAllByCategoryNameAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(
 			eq("notices"), eq(PostStatus.PUBLISHED), any(Pageable.class))).willReturn(page);
-		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(100L, "user-1", 1L, "title", "content", 0, false, PostStatus.PUBLISHED, null, null, null));
+		given(postMapper.toResponseWithQnaStatus(any(PostsEntity.class), isNull()))
+			.willReturn(new PostResponse(100L, "user-1", 1L, "title", "content", 0, false, PostStatus.PUBLISHED, null, null, null));
 
 		// when
 		PageResponse<PostResponse> response = postService.list("notices", pageRequest, user);
@@ -106,7 +115,10 @@ class PostServiceTest {
 		given(categoriesRepository.findByNameAndDeletedAtIsNull("qna")).willReturn(Optional.of(category));
 		given(postsRepository.findAllByCategoryNameAndUserIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(
 			eq("qna"), eq(1L), eq(PostStatus.PUBLISHED), any(Pageable.class))).willReturn(page);
-		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(100L, "user-1", 2L, "qna", "content", 0, false, PostStatus.PUBLISHED, "pending", null, null));
+		given(commentsRepository.findAnsweredPostIdsByPostIdsAndRole(anyList(), eq(RoleName.ROLE_ADMIN)))
+			.willReturn(Set.of());
+		given(postMapper.toResponseWithQnaStatus(any(PostsEntity.class), eq("pending")))
+			.willReturn(new PostResponse(100L, "user-1", 2L, "qna", "content", 0, false, PostStatus.PUBLISHED, "pending", null, null));
 
 		// when
 		PageResponse<PostResponse> response = postService.list("qna", pageRequest, user);
@@ -162,7 +174,9 @@ class PostServiceTest {
 			ReflectionTestUtils.setField(p, "id", 100L);
 			return p;
 		});
-		given(postMapper.toResponse(any(PostsEntity.class))).willReturn(new PostResponse(100L, "user-1", 2L, "qna title", "qna content", 0, false, PostStatus.PUBLISHED, null, null, null));
+		given(commentsRepository.countByPostIdAndRole(100L, RoleName.ROLE_ADMIN)).willReturn(0L);
+		given(postMapper.toResponseWithQnaStatus(any(PostsEntity.class), eq("pending")))
+			.willReturn(new PostResponse(100L, "user-1", 2L, "qna title", "qna content", 0, false, PostStatus.PUBLISHED, "pending", null, null));
 
 		// when
 		PostResponse response = postService.create("qna", user, request);
@@ -184,7 +198,9 @@ class PostServiceTest {
 
 		given(postsRepository.findByIdAndCategoryNameAndDeletedAtIsNull(100L, "qna"))
 			.willReturn(Optional.of(post));
-		given(postMapper.toResponse(post)).willReturn(new PostResponse(100L, "user-1", 2L, "updated", "content", 0, false, PostStatus.PUBLISHED, null, null, null));
+		given(commentsRepository.countByPostIdAndRole(100L, RoleName.ROLE_ADMIN)).willReturn(0L);
+		given(postMapper.toResponseWithQnaStatus(post, "pending"))
+			.willReturn(new PostResponse(100L, "user-1", 2L, "updated", "content", 0, false, PostStatus.PUBLISHED, "pending", null, null));
 
 		// when
 		PostResponse response = postService.update("qna", user, 100L, request);
@@ -254,7 +270,9 @@ class PostServiceTest {
 
 		given(postsRepository.findByIdAndCategoryNameAndDeletedAtIsNull(100L, "qna"))
 			.willReturn(Optional.of(post));
-		given(postMapper.toResponse(post)).willReturn(new PostResponse(100L, "user-1", 2L, "admin updated", "content", 0, true, PostStatus.PUBLISHED, null, null, null));
+		given(commentsRepository.countByPostIdAndRole(100L, RoleName.ROLE_ADMIN)).willReturn(0L);
+		given(postMapper.toResponseWithQnaStatus(post, "pending"))
+			.willReturn(new PostResponse(100L, "user-1", 2L, "admin updated", "content", 0, true, PostStatus.PUBLISHED, "pending", null, null));
 
 		// when
 		PostResponse response = postService.updateAdmin("qna", 100L, request);
@@ -302,9 +320,10 @@ class PostServiceTest {
 
 		given(postsRepository.findByIdAndCategoryNameAndDeletedAtIsNull(100L, "qna"))
 			.willReturn(Optional.of(post));
-		given(postMapper.toResponse(post)).willReturn(new PostResponse(
-			100L, "user-1", 2L, "title", "content", 0, false, PostStatus.PUBLISHED, null, null, null
-		));
+		given(commentsRepository.countByPostIdAndRole(100L, RoleName.ROLE_ADMIN)).willReturn(0L);
+		given(postMapper.toResponseWithQnaStatus(post, "pending")).willReturn(
+			new PostResponse(100L, "user-1", 2L, "title", "content", 0, false, PostStatus.PUBLISHED, "pending", null, null)
+		);
 		given(postFilesRepository.findAllActiveByPostIdOrderByCreatedAtAsc(100L))
 			.willReturn(List.of(mapping));
 		given(fileMapper.toResponse(eq(100L), any(FilesEntity.class))).willReturn(
