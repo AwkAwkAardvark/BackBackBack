@@ -4,10 +4,13 @@ set -euo pipefail
 APP_NAME="${APP_NAME:-backbackback}"
 APP_DIR="${APP_DIR:-/opt/project}"
 LIB_FILE="${APP_DIR}/scripts/lib/deploy-runtime.sh"
+ENV_FILE="${ENV_FILE:-/etc/${APP_NAME}/${APP_NAME}.env}"
 
 if [ -f "$LIB_FILE" ]; then
   # shellcheck disable=SC1090
   . "$LIB_FILE"
+  # 런타임 결정 전에 환경 변수 파일을 먼저 로드
+  load_env_file_if_exists "$ENV_FILE"
   DEPLOY_RUNTIME_RESOLVED="$(resolve_deploy_runtime)"
 else
   DEPLOY_RUNTIME_RESOLVED="${DEPLOY_RUNTIME:-systemd}"

@@ -11,6 +11,8 @@ IMAGE_ENV_FILE="${IMAGE_ENV_FILE:-${APP_DIR}/image-uri.env}"
 if [ -f "$LIB_FILE" ]; then
   # shellcheck disable=SC1090
   . "$LIB_FILE"
+  # 런타임 결정 전에 환경 변수 파일을 먼저 로드하여 DEPLOY_RUNTIME=docker 설정을 읽어옵니다.
+  load_env_file_if_exists "$ENV_FILE"
   DEPLOY_RUNTIME_RESOLVED="$(resolve_deploy_runtime)"
 else
   DEPLOY_RUNTIME_RESOLVED="${DEPLOY_RUNTIME:-systemd}"
@@ -22,7 +24,6 @@ if [ "$DEPLOY_RUNTIME_RESOLVED" = "docker" ] && [ ! -f "$LIB_FILE" ]; then
 fi
 
 if [ "$DEPLOY_RUNTIME_RESOLVED" = "docker" ]; then
-  load_env_file_if_exists "$ENV_FILE"
   load_env_file_if_exists "$IMAGE_ENV_FILE"
 
   if [ -z "${APP_IMAGE:-}" ]; then
