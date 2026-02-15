@@ -10,15 +10,16 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       REDIS_HOST: ${REDIS_HOST_DOCKER:-redis}
-      # 컨테이너 내부 마운트 경로로 키 위치 강제 지정
-      JWT_PUBLIC_KEY_PATH: /secrets/jwt/public.pem
-      JWT_PRIVATE_KEY_PATH: /secrets/jwt/private.pem
+      # 앱은 무조건 컨테이너 내부 마운트 경로를 바라봅니다.
+      JWT_KEYS_PUBLIC_KEY_PATH: /secrets/jwt/public.pem
+      JWT_KEYS_PRIVATE_KEY_PATH: /secrets/jwt/private.pem
     ports:
       - "${SERVER_PORT:-8080}:8080"
     depends_on:
       - redis
     volumes:
-      - ${JWT_HOST_PATH:-/secrets/jwt}:/secrets/jwt:ro
+      # 호스트의 키 위치(JWT_HOST_PATH)를 컨테이너 내부(/secrets/jwt)로 연결
+      - ${JWT_HOST_PATH:?JWT_HOST_PATH is required}:/secrets/jwt:ro
       - ${UPLOAD_HOST_PATH:-/var/app/uploads}:/var/app/uploads
       - ${LOG_HOST_PATH:-/var/log/backbackback}:/var/log/backbackback
 
