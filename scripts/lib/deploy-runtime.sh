@@ -66,8 +66,8 @@ run_compose_command() {
   local image_env_file="${IMAGE_ENV_FILE:-${app_dir}/image-uri.env}"
   local cmd=()
 
-  load_env_file_if_exists "$env_file"
-  load_env_file_if_exists "$image_env_file"
+  # 도커 배포 시에는 쉘 환경 변수로 로드하지 않고 (오염 방지)
+  # docker compose의 --env-file 옵션만 사용하여 보안을 유지합니다.
 
   if [ ! -f "$compose_file" ]; then
     echo "[ERROR] compose 파일을 찾지 못했습니다: $compose_file" >&2

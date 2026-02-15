@@ -32,6 +32,10 @@ if [ "$DEPLOY_RUNTIME_RESOLVED" = "docker" ]; then
 
   docker_login_to_ecr_if_needed
   run_compose_command pull app
+  
+  # 기존 컨테이너 및 포트 점유 정리
+  run_compose_command down || true
+  
   run_compose_command up -d --remove-orphans
   echo "[INFO] 서버 시작 완료 (docker compose)"
   exit 0
