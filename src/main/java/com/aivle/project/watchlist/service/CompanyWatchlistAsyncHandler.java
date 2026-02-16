@@ -7,8 +7,10 @@ import com.aivle.project.company.service.CompanyAiCommentService;
 import com.aivle.project.company.service.CompanyPredictionCacheService;
 import com.aivle.project.company.service.CompanyReputationScoreService;
 import com.aivle.project.company.service.CompanySignalCacheService;
+import com.aivle.project.common.error.ExternalAiUnavailableException;
 import com.aivle.project.report.repository.CompanyReportMetricValuesRepository;
 import com.aivle.project.watchlist.event.CompanyWatchlistCreatedEvent;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -31,16 +33,17 @@ public class CompanyWatchlistAsyncHandler {
 
 	@Async("insightExecutor")
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-	public void handleWatchlistCreated(CompanyWatchlistCreatedEvent event) {
-		try {
-			CompaniesEntity company = companiesRepository.findById(event.companyId()).orElse(null);
-			if (company == null) {
-				return;
-			}
-			String stockCode = company.getStockCode();
-			Integer latestActualQuarterKey = companyReportMetricValuesRepository
-				.findMaxActualQuarterKeyByStockCode(stockCode)
-				.orElse(null);
+		public void handleWatchlistCreated(CompanyWatchlistCreatedEvent event) {
+			String stockCode = null;
+			try {
+				CompaniesEntity company = companiesRepository.findById(event.companyId()).orElse(null);
+				if (company == null) {
+					return;
+				}
+				stockCode = company.getStockCode();
+				Integer latestActualQuarterKey = companyReportMetricValuesRepository
+					.findMaxActualQuarterKeyByStockCode(stockCode)
+					.orElse(null);
 			if (latestActualQuarterKey == null) {
 				return;
 			}
@@ -48,10 +51,42 @@ public class CompanyWatchlistAsyncHandler {
 			companyHealthScoreCacheService.ensureHealthScoreCached(event.companyId(), latestActualQuarterKey);
 			companyPredictionCacheService.ensurePredictionCached(event.companyId(), latestActualQuarterKey);
 			companySignalCacheService.ensureSignalsCached(event.companyId(), latestActualQuarterKey);
-			companyReputationScoreService.syncExternalHealthScoreIfPresent(event.companyId(), stockCode);
-			companyAiCommentService.ensureAiCommentCached(event.companyId(), String.valueOf(latestActualQuarterKey));
-		} catch (Exception e) {
-			log.warn("워치리스트 등록 후 기업 정보 캐시 실패: companyId={}", event.companyId(), e);
+				companyReputationScoreService.syncExternalHealthScoreIfPresent(event.companyId(), stockCode);
+				companyAiCommentService.ensureAiCommentCached(event.companyId(), String.valueOf(latestActualQuarterKey));
+			} catch (Exception e) {
+				String reasonCode = resolveReasonCode(e);
+				log.warn(
+					"워치리스트 캐시 선행 적재 실패: operation=watchlist-created-warmup, companyId={}, stockCode={}, reasonCode={}",
+					event.companyId(),
+					stockCode,
+					reasonCode,
+					e
+				);
+			}
+		}
+
+		private String resolveReasonCode(Throwable throwable) {
+			if (throwable instanceof ExternalAiUnavailableException externalAiUnavailableException) {
+				return externalAiUnavailableException.getReasonCode();
+			}
+			if (containsCause(throwable, CallNotPermittedException.class)) {
+				return "AI_CIRCUIT_OPEN";
+			}
+			if (containsCause(throwable, io.netty.handler.timeout.ReadTimeoutException.class)
+				|| containsCause(throwable, java.util.concurrent.TimeoutException.class)) {
+				return "AI_TIMEOUT";
+			}
+			return "AI_UNAVAILABLE";
+		}
+
+		private boolean containsCause(Throwable throwable, Class<? extends Throwable> type) {
+			Throwable current = throwable;
+			while (current != null) {
+				if (type.isInstance(current)) {
+					return true;
+				}
+				current = current.getCause();
+			}
+			return false;
 		}
 	}
-}

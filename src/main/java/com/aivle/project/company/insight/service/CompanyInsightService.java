@@ -3,6 +3,7 @@ package com.aivle.project.company.insight.service;
 import com.aivle.project.company.entity.CompaniesEntity;
 import com.aivle.project.company.insight.dto.CompanyInsightDto;
 import com.aivle.project.company.insight.dto.CompanyInsightType;
+import com.aivle.project.common.error.ExternalAiUnavailableException;
 import com.aivle.project.company.news.entity.NewsAnalysisEntity;
 import com.aivle.project.company.news.entity.NewsArticleEntity;
 import com.aivle.project.company.news.repository.NewsAnalysisRepository;
@@ -60,11 +61,26 @@ public class CompanyInsightService {
 
 		Optional<ReportAnalysisEntity> latestReportOpt;
 		Optional<NewsAnalysisEntity> latestNewsOpt;
+		ExternalAiUnavailableException externalFailure = null;
 
 		if (refresh) {
 			// 인사이트 강제 갱신 시 뉴스/보고서를 모두 재수집한다.
-			newsService.refreshLatestNews(stockCode);
-			reportAnalysisService.fetchAndStoreReport(stockCode);
+			try {
+				newsService.refreshLatestNews(stockCode);
+			} catch (ExternalAiUnavailableException ex) {
+				externalFailure = ex;
+				log.warn("인사이트 강제 갱신 중 뉴스 수집 실패: companyId={}, stockCode={}, reasonCode={}",
+					companyId, stockCode, ex.getReasonCode());
+			}
+			try {
+				reportAnalysisService.fetchAndStoreReport(stockCode);
+			} catch (ExternalAiUnavailableException ex) {
+				if (externalFailure == null) {
+					externalFailure = ex;
+				}
+				log.warn("인사이트 강제 갱신 중 보고서 수집 실패: companyId={}, stockCode={}, reasonCode={}",
+					companyId, stockCode, ex.getReasonCode());
+			}
 		}
 
 		latestReportOpt = reportAnalysisRepository
@@ -99,18 +115,42 @@ public class CompanyInsightService {
 		}
 
 			if (!hasReport) {
-				reportAnalysisService.fetchAndStoreReport(stockCode);
+				try {
+					reportAnalysisService.fetchAndStoreReport(stockCode);
+				} catch (ExternalAiUnavailableException ex) {
+					if (externalFailure == null) {
+						externalFailure = ex;
+					}
+					log.warn("인사이트 조회 중 보고서 수집 실패: companyId={}, stockCode={}, reasonCode={}",
+						companyId, stockCode, ex.getReasonCode());
+				}
 				latestReport = reportAnalysisRepository
 					.findTopByCompanyIdOrderByAnalyzedAtDesc(companyId)
 					.orElse(null);
 			}
 			if (!hasNews) {
-				newsService.refreshLatestNews(stockCode);
+				try {
+					newsService.refreshLatestNews(stockCode);
+				} catch (ExternalAiUnavailableException ex) {
+					if (externalFailure == null) {
+						externalFailure = ex;
+					}
+					log.warn("인사이트 조회 중 뉴스 수집 실패: companyId={}, stockCode={}, reasonCode={}",
+						companyId, stockCode, ex.getReasonCode());
+				}
 				latestNews = newsAnalysisRepository
 					.findTopByCompanyIdOrderByAnalyzedAtDesc(companyId)
 					.orElse(null);
 			}
-		companyReputationScoreService.syncExternalHealthScoreIfPresent(companyId, stockCode);
+			try {
+				companyReputationScoreService.syncExternalHealthScoreIfPresent(companyId, stockCode);
+			} catch (ExternalAiUnavailableException ex) {
+				if (externalFailure == null) {
+					externalFailure = ex;
+				}
+				log.warn("인사이트 조회 중 평판 점수 동기화 실패: companyId={}, stockCode={}, reasonCode={}",
+					companyId, stockCode, ex.getReasonCode());
+			}
 
 		List<CompanyInsightDto> items = new java.util.ArrayList<>();
 
@@ -131,7 +171,7 @@ public class CompanyInsightService {
 			}
 		}
 
-		if (latestNews != null) {
+			if (latestNews != null) {
 			Page<NewsArticleEntity> newsArticles = newsArticleRepository
 				.findByNewsAnalysisIdOrderByPublishedAtDesc(latestNews.getId(), PageRequest.of(newsPage, newsSize));
 			for (NewsArticleEntity article : newsArticles.getContent()) {
@@ -146,10 +186,13 @@ public class CompanyInsightService {
 					.url(article.getLink())
 					.build());
 			}
-		}
+			}
 
-		return new InsightResult(items, latestNews != null ? latestNews.getAverageScore() : null, false);
-	}
+			if (items.isEmpty() && externalFailure != null) {
+				throw externalFailure;
+			}
+			return new InsightResult(items, latestNews != null ? latestNews.getAverageScore() : null, false);
+		}
 
 	private LocalDateTime resolvePublishedAt(LocalDateTime publishedAt, LocalDateTime fallback) {
 		return publishedAt != null ? publishedAt : fallback;

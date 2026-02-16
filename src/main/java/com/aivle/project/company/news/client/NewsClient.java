@@ -1,8 +1,10 @@
 package com.aivle.project.company.news.client;
 
+import com.aivle.project.common.error.ExternalAiUnavailableException;
 import com.aivle.project.company.news.dto.NewsApiResponse;
 import com.aivle.project.company.news.dto.NewsItemResponse;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.codec.DecodingException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -87,7 +90,7 @@ public class NewsClient {
 				throw new RuntimeException("AI Server response format error: invalid datetime field", e);
 		} catch (Exception e) {
 			log.error("Failed to fetch news for company {}: {}", companyCode, e.getMessage());
-			throw new RuntimeException("AI Server connection failed", e);
+			throw toExternalAiUnavailable(e);
 		}
 	}
 
@@ -114,12 +117,12 @@ public class NewsClient {
 					com.aivle.project.company.reportanalysis.dto.ReportApiResponse.class,
 					companyCode
 				);
-			} catch (DecodingException e) {
-				log.error("Failed to decode AI report response for company {}: {}", companyCode, e.getMessage());
-				throw new RuntimeException("AI Server response format error: invalid datetime field", e);
+				} catch (DecodingException e) {
+					log.error("Failed to decode AI report response for company {}: {}", companyCode, e.getMessage());
+					throw new RuntimeException("AI Server response format error: invalid datetime field", e);
 		} catch (Exception e) {
 			log.error("Failed to fetch report analysis for company {}: {}", companyCode, e.getMessage());
-			throw new RuntimeException("AI Server connection failed", e);
+			throw toExternalAiUnavailable(e);
 		}
 	}
 
@@ -152,6 +155,36 @@ public class NewsClient {
 			.bodyToMono(responseType)
 			.timeout(callTimeout)
 			.block();
+	}
+
+	private ExternalAiUnavailableException toExternalAiUnavailable(Throwable throwable) {
+		String reasonCode = resolveReasonCode(throwable);
+		return new ExternalAiUnavailableException("AI Server connection failed", reasonCode, throwable);
+	}
+
+	private String resolveReasonCode(Throwable throwable) {
+		if (containsCause(throwable, CallNotPermittedException.class)) {
+			return "AI_CIRCUIT_OPEN";
+		}
+		if (containsCause(throwable, io.netty.handler.timeout.ReadTimeoutException.class)
+			|| containsCause(throwable, java.util.concurrent.TimeoutException.class)) {
+			return "AI_TIMEOUT";
+		}
+		if (containsCause(throwable, WebClientRequestException.class)) {
+			return "AI_UNAVAILABLE";
+		}
+		return "AI_UNAVAILABLE";
+	}
+
+	private boolean containsCause(Throwable throwable, Class<? extends Throwable> type) {
+		Throwable current = throwable;
+		while (current != null) {
+			if (type.isInstance(current)) {
+				return true;
+			}
+			current = current.getCause();
+		}
+		return false;
 	}
 
 	private NewsApiResponse mockNews(String companyCode, String companyName) {

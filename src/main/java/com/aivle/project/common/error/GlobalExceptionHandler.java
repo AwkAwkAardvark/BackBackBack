@@ -39,6 +39,15 @@ public class GlobalExceptionHandler {
 		return buildResponse(ex.getErrorCode(), request.getRequestURI());
 	}
 
+	@ExceptionHandler(ExternalAiUnavailableException.class)
+	public ResponseEntity<ApiResponse<Void>> handleExternalAiUnavailable(
+		ExternalAiUnavailableException ex,
+		HttpServletRequest request
+	) {
+		log.warn("External AI unavailable: reasonCode={}, path={}", ex.getReasonCode(), request.getRequestURI());
+		return buildResponse(ex.getErrorCode(), request.getRequestURI());
+	}
+
 	@ExceptionHandler(FileException.class)
 	public ResponseEntity<ApiResponse<Void>> handleFileException(FileException ex, HttpServletRequest request) {
 		return buildResponse(ex.getErrorCode(), request.getRequestURI());

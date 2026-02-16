@@ -11,6 +11,7 @@ public enum CommonErrorCode implements ErrorCode {
 	COMMON_403("COMMON_403", "요청 권한이 없습니다.", HttpStatus.FORBIDDEN),
 	COMMON_404("COMMON_404", "리소스를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 	COMMON_409("COMMON_409", "요청이 현재 상태와 충돌합니다.", HttpStatus.CONFLICT),
+	COMMON_503("COMMON_503", "외부 연동 서비스가 일시적으로 사용할 수 없습니다.", HttpStatus.SERVICE_UNAVAILABLE),
 	COMMON_500("COMMON_500", "서버 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
 
 	private final String code;

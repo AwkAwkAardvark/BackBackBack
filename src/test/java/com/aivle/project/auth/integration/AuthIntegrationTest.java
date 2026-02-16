@@ -351,28 +351,48 @@ class AuthIntegrationTest {
 		String oldPassword = "OldPassword123!";
 		String newPassword = "NewPassword123!";
 		createActiveUserWithRole(email, oldPassword, RoleName.ROLE_USER);
-		String accessToken = loginAndGetAccessToken(email, oldPassword, "device-1");
+		LoginRequest loginRequest = new LoginRequest();
+		loginRequest.setEmail(email);
+		loginRequest.setPassword(oldPassword);
+		loginRequest.setDeviceId("device-1");
+		loginRequest.setDeviceInfo("test-device");
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(loginRequest)))
+			.andExpect(status().isOk())
+			.andReturn();
+		ApiResponse<AuthLoginResponse> loginApiResponse = objectMapper.readValue(
+			loginResult.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<AuthLoginResponse>>() {}
+		);
+		assertThat(loginApiResponse.success()).isTrue();
+		assertThat(loginApiResponse.data()).isNotNull();
+		String accessToken = loginApiResponse.data().accessToken();
+		Cookie csrfCookie = loginResult.getResponse().getCookie("csrf_token");
+		assertThat(csrfCookie).isNotNull();
 
 		PasswordChangeRequest request = new PasswordChangeRequest(oldPassword, newPassword);
 
 		// when: 비밀번호 변경 요청
 		mockMvc.perform(post("/api/auth/change-password")
-				.header("Authorization", "Bearer " + accessToken)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isOk());
+					.header("Authorization", "Bearer " + accessToken)
+					.cookie(csrfCookie)
+					.header(CSRF_HEADER_NAME, csrfCookie.getValue())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isOk());
 
 		// then: 비밀번호가 변경되었는지 확인 (새 비밀번호로 로그인 시도)
-		LoginRequest loginRequest = new LoginRequest();
-		loginRequest.setEmail(email);
-		loginRequest.setPassword(newPassword);
-		loginRequest.setDeviceId("device-1");
+		LoginRequest reloginRequest = new LoginRequest();
+		reloginRequest.setEmail(email);
+		reloginRequest.setPassword(newPassword);
+		reloginRequest.setDeviceId("device-1");
 
 		mockMvc.perform(post("/api/auth/login")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(loginRequest)))
-			.andDo(print())
-			.andExpect(status().isOk());
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(objectMapper.writeValueAsString(reloginRequest)))
+				.andDo(print())
+				.andExpect(status().isOk());
 
 		// then: passwordChangedAt이 업데이트 되었는지 확인
 		UserEntity updatedUser = userRepository.findByEmail(email).orElseThrow();
@@ -593,13 +613,16 @@ class AuthIntegrationTest {
 		assertThat(loginApiResponse.data()).isNotNull();
 		String accessToken = loginApiResponse.data().accessToken();
 		Cookie refreshCookie = loginResult.getResponse().getCookie("refresh_token");
+		Cookie csrfCookie = loginResult.getResponse().getCookie("csrf_token");
+		assertThat(csrfCookie).isNotNull();
 
 		// when: 전체 로그아웃 요청 (인증 필요)
 		MvcResult logoutAllResult = mockMvc.perform(post("/api/auth/logout-all")
-				.header("Authorization", "Bearer " + accessToken)
-				.cookie(refreshCookie))
-			.andExpect(status().isOk())
-			.andReturn();
+					.header("Authorization", "Bearer " + accessToken)
+					.cookie(refreshCookie, csrfCookie)
+					.header(CSRF_HEADER_NAME, csrfCookie.getValue()))
+				.andExpect(status().isOk())
+				.andReturn();
 
 		// then: 쿠키 삭제 확인
 		Cookie clearedCookie = logoutAllResult.getResponse().getCookie("refresh_token");
@@ -615,12 +638,32 @@ class AuthIntegrationTest {
 	void logoutAll_shouldRejectClaims() throws Exception {
 		// given
 		createActiveUserWithRole("logoutall2@test.com", "password", RoleName.ROLE_USER);
-		String accessToken = loginAndGetAccessToken("logoutall2@test.com", "password", "device-1");
+		LoginRequest loginRequest = new LoginRequest();
+		loginRequest.setEmail("logoutall2@test.com");
+		loginRequest.setPassword("password");
+		loginRequest.setDeviceId("device-1");
+		loginRequest.setDeviceInfo("test-device");
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(loginRequest)))
+			.andExpect(status().isOk())
+			.andReturn();
+		ApiResponse<AuthLoginResponse> loginApiResponse = objectMapper.readValue(
+			loginResult.getResponse().getContentAsString(),
+			new TypeReference<ApiResponse<AuthLoginResponse>>() {}
+		);
+		assertThat(loginApiResponse.success()).isTrue();
+		assertThat(loginApiResponse.data()).isNotNull();
+		String accessToken = loginApiResponse.data().accessToken();
+		Cookie csrfCookie = loginResult.getResponse().getCookie("csrf_token");
+		assertThat(csrfCookie).isNotNull();
 
 		// when: 전체 로그아웃
 		mockMvc.perform(post("/api/auth/logout-all")
-				.header("Authorization", "Bearer " + accessToken))
-			.andExpect(status().isOk());
+					.header("Authorization", "Bearer " + accessToken)
+					.cookie(csrfCookie)
+					.header(CSRF_HEADER_NAME, csrfCookie.getValue()))
+				.andExpect(status().isOk());
 
 		// then: 기존 토큰으로 클레임 조회 시 실패
 		mockMvc.perform(get("/dev/auth/console/claims")
@@ -659,9 +702,10 @@ class AuthIntegrationTest {
 
 			// when: 전체 로그아웃 후 기존 쿠키로 재발급 시도
 			mockMvc.perform(post("/api/auth/logout-all")
-					.header("Authorization", "Bearer " + accessToken)
-					.cookie(refreshCookie))
-				.andExpect(status().isOk());
+						.header("Authorization", "Bearer " + accessToken)
+						.cookie(csrfCookie)
+						.header(CSRF_HEADER_NAME, csrfCookie.getValue()))
+					.andExpect(status().isOk());
 
 			MvcResult refreshResult = mockMvc.perform(post("/api/auth/refresh")
 					.cookie(refreshCookie, csrfCookie)

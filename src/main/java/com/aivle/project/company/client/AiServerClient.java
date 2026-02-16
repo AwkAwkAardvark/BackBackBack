@@ -4,7 +4,9 @@ import com.aivle.project.company.dto.AiAnalysisResponse;
 import com.aivle.project.company.dto.AiCommentResponse;
 import com.aivle.project.company.dto.AiHealthScoreResponse;
 import com.aivle.project.company.dto.AiSignalResponse;
+import com.aivle.project.common.error.ExternalAiUnavailableException;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.util.UriBuilder;
 
 @Slf4j
@@ -73,7 +76,7 @@ public class AiServerClient {
             );
         } catch (Exception e) {
             log.error("Failed to get prediction for company {}: {}", companyCode, e.getMessage());
-            throw new RuntimeException("AI Server connection failed", e);
+            throw toExternalAiUnavailable(e);
         }
     }
 
@@ -117,7 +120,7 @@ public class AiServerClient {
             );
         } catch (Exception e) {
             log.error("Failed to get health score for company {}: {}", companyCode, e.getMessage());
-            throw new RuntimeException("AI Server connection failed", e);
+            throw toExternalAiUnavailable(e);
         }
     }
 
@@ -140,7 +143,7 @@ public class AiServerClient {
             );
         } catch (Exception e) {
             log.error("Failed to get signals for company {}: {}", companyCode, e.getMessage());
-            throw new RuntimeException("AI Server connection failed", e);
+            throw toExternalAiUnavailable(e);
         }
     }
 
@@ -159,7 +162,7 @@ public class AiServerClient {
             return getWithTimeout(uriBuilder -> buildAiCommentUri(uriBuilder, companyCode, period), AiCommentResponse.class);
         } catch (Exception e) {
             log.error("Failed to get AI comment for company {}: {}", companyCode, e.getMessage());
-            throw new RuntimeException("AI Server connection failed", e);
+            throw toExternalAiUnavailable(e);
         }
     }
 
@@ -178,6 +181,36 @@ public class AiServerClient {
             .bodyToMono(responseType)
             .timeout(callTimeout)
             .block();
+    }
+
+    private ExternalAiUnavailableException toExternalAiUnavailable(Throwable throwable) {
+        String reasonCode = resolveReasonCode(throwable);
+        return new ExternalAiUnavailableException("AI Server connection failed", reasonCode, throwable);
+    }
+
+    private String resolveReasonCode(Throwable throwable) {
+        if (containsCause(throwable, CallNotPermittedException.class)) {
+            return "AI_CIRCUIT_OPEN";
+        }
+        if (containsCause(throwable, io.netty.handler.timeout.ReadTimeoutException.class)
+            || containsCause(throwable, java.util.concurrent.TimeoutException.class)) {
+            return "AI_TIMEOUT";
+        }
+        if (containsCause(throwable, WebClientRequestException.class)) {
+            return "AI_UNAVAILABLE";
+        }
+        return "AI_UNAVAILABLE";
+    }
+
+    private boolean containsCause(Throwable throwable, Class<? extends Throwable> type) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (type.isInstance(current)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private void applyMockLatency() {

@@ -1,5 +1,7 @@
 package com.aivle.project.watchlist.service;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -11,6 +13,7 @@ import com.aivle.project.company.service.CompanyHealthScoreCacheService;
 import com.aivle.project.company.service.CompanyPredictionCacheService;
 import com.aivle.project.company.service.CompanyReputationScoreService;
 import com.aivle.project.company.service.CompanySignalCacheService;
+import com.aivle.project.common.error.ExternalAiUnavailableException;
 import com.aivle.project.report.repository.CompanyReportMetricValuesRepository;
 import com.aivle.project.watchlist.event.CompanyWatchlistCreatedEvent;
 import java.time.LocalDate;
@@ -101,5 +104,29 @@ class CompanyWatchlistAsyncHandlerTest {
 		verifyNoInteractions(companySignalCacheService);
 		verifyNoInteractions(companyReputationScoreService);
 		verifyNoInteractions(companyAiCommentService);
+	}
+
+	@Test
+	@DisplayName("외부 AI 장애가 발생해도 비동기 핸들러는 예외를 전파하지 않는다")
+	void swallowExternalAiException() {
+		// given
+		Long companyId = 30L;
+		CompaniesEntity company = CompaniesEntity.create(
+			"00000030",
+			"테스트기업3",
+			"TEST_CO3",
+			"000040",
+			LocalDate.of(2025, 1, 1)
+		);
+		when(companiesRepository.findById(companyId)).thenReturn(Optional.of(company));
+		when(companyReportMetricValuesRepository.findMaxActualQuarterKeyByStockCode("000040"))
+			.thenReturn(Optional.of(20254));
+		doThrow(new ExternalAiUnavailableException("AI Server connection failed", "AI_TIMEOUT", new RuntimeException("timeout")))
+			.when(companyHealthScoreCacheService).ensureHealthScoreCached(companyId, 20254);
+
+		// when & then
+		assertDoesNotThrow(() ->
+			companyWatchlistAsyncHandler.handleWatchlistCreated(new CompanyWatchlistCreatedEvent(1L, companyId))
+		);
 	}
 }

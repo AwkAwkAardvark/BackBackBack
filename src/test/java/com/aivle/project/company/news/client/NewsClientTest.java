@@ -3,6 +3,7 @@ package com.aivle.project.company.news.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.aivle.project.common.error.ExternalAiUnavailableException;
 import com.aivle.project.company.news.dto.NewsApiResponse;
 import com.aivle.project.company.reportanalysis.dto.ReportApiResponse;
 import java.util.concurrent.TimeUnit;
@@ -63,10 +64,10 @@ class NewsClientTest {
 				.addHeader("Content-Type", "application/json")
 				.setBodyDelay(500, TimeUnit.MILLISECONDS));
 
-			// when & then
-			assertThatThrownBy(() -> newsClient.fetchNews("900001", "테스트"))
-				.isInstanceOf(RuntimeException.class)
-				.hasMessageContaining("AI Server connection failed");
+				// when & then
+				assertThatThrownBy(() -> newsClient.fetchNews("900001", "테스트"))
+					.isInstanceOf(ExternalAiUnavailableException.class)
+					.hasMessageContaining("AI Server connection failed");
+			}
 		}
-	}
 }

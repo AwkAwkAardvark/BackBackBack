@@ -108,9 +108,9 @@ ai:
   server:
     url: ${AI_SERVER_URL:https://bigbig-ai-server.azurewebsites.net}
     http:
-      connect-timeout-ms: ${AI_SERVER_CONNECT_TIMEOUT_MS:3000}
-      response-timeout-ms: ${AI_SERVER_RESPONSE_TIMEOUT_MS:8000}
-      call-timeout-ms: ${AI_SERVER_CALL_TIMEOUT_MS:10000}
+      connect-timeout-ms: ${AI_SERVER_CONNECT_TIMEOUT_MS:5000}
+      response-timeout-ms: ${AI_SERVER_RESPONSE_TIMEOUT_MS:70000}
+      call-timeout-ms: ${AI_SERVER_CALL_TIMEOUT_MS:80000}
       max-connections: ${AI_SERVER_MAX_CONNECTIONS:100}
       pending-acquire-timeout-ms: ${AI_SERVER_PENDING_ACQUIRE_TIMEOUT_MS:2000}
 
@@ -124,7 +124,7 @@ resilience4j:
         permittedNumberOfCallsInHalfOpenState: 5
         waitDurationInOpenState: 20s
         failureRateThreshold: 50
-        slowCallDurationThreshold: 5s
+        slowCallDurationThreshold: 70s
         slowCallRateThreshold: 60
         recordExceptions:
           - java.io.IOException
@@ -136,7 +136,7 @@ resilience4j:
   retry:
     instances:
       aiServer:
-        maxAttempts: 3
+        maxAttempts: 1
         waitDuration: 300ms
         enableExponentialBackoff: true
         exponentialBackoffMultiplier: 3

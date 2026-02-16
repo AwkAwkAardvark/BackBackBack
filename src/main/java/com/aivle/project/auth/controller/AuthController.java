@@ -26,6 +26,7 @@ import jakarta.validation.Valid;
 import java.security.SecureRandom;
 import java.util.Base64;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -45,6 +46,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "인증", description = "로그인/회원가입/토큰 재발급 API")
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 @RequestMapping("/api/auth")
 public class AuthController {
 
@@ -130,7 +132,11 @@ public class AuthController {
 		@Parameter(hidden = true) @RequestHeader(name = CSRF_HEADER_NAME, required = false) String csrfHeaderToken,
 		@Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt
 	) {
-		validateCsrf(csrfCookieToken, csrfHeaderToken);
+		try {
+			validateCsrf(csrfCookieToken, csrfHeaderToken);
+		} catch (AuthException e) {
+			log.warn("Logout CSRF validation failed but proceeding: {}", e.getMessage());
+		}
 		authService.logout(cookieRefreshToken, jwt);
 		ResponseCookie cookie = createRefreshTokenCookie("", 0);
 		ResponseCookie csrfCookie = createCsrfCookie("", 0);
@@ -146,7 +152,12 @@ public class AuthController {
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "전체 로그아웃 성공"),
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
 	})
-	public ResponseEntity<ApiResponse<Void>> logoutAll(@Parameter(hidden = true) @CurrentUser UserEntity user) {
+	public ResponseEntity<ApiResponse<Void>> logoutAll(
+		@Parameter(hidden = true) @CookieValue(name = CSRF_COOKIE_NAME, required = false) String csrfCookieToken,
+		@Parameter(hidden = true) @RequestHeader(name = CSRF_HEADER_NAME, required = false) String csrfHeaderToken,
+		@Parameter(hidden = true) @CurrentUser UserEntity user
+	) {
+		validateCsrf(csrfCookieToken, csrfHeaderToken);
 		authService.logoutAll(user);
 		ResponseCookie cookie = createRefreshTokenCookie("", 0);
 		ResponseCookie csrfCookie = createCsrfCookie("", 0);
@@ -164,8 +175,11 @@ public class AuthController {
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 필요")
 	})
 	public ResponseEntity<ApiResponse<Void>> changePassword(
+		@Parameter(hidden = true) @CookieValue(name = CSRF_COOKIE_NAME, required = false) String csrfCookieToken,
+		@Parameter(hidden = true) @RequestHeader(name = CSRF_HEADER_NAME, required = false) String csrfHeaderToken,
 		@Parameter(hidden = true) @CurrentUser UserEntity user,
 		@Valid @RequestBody PasswordChangeRequest request) {
+		validateCsrf(csrfCookieToken, csrfHeaderToken);
 		authService.changePassword(user, request);
 		return ResponseEntity.ok(ApiResponse.ok());
 	}

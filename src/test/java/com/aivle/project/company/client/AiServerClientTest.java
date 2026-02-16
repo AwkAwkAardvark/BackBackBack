@@ -2,6 +2,7 @@ package com.aivle.project.company.client;
 
 import com.aivle.project.company.dto.AiAnalysisResponse;
 import com.aivle.project.company.dto.AiCommentResponse;
+import com.aivle.project.common.error.ExternalAiUnavailableException;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -74,7 +75,7 @@ class AiServerClientTest {
 
         // when & then
         assertThatThrownBy(() -> aiServerClient.getPrediction("005930"))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(ExternalAiUnavailableException.class)
                 .hasMessageContaining("AI Server connection failed");
     }
 
@@ -98,11 +99,11 @@ class AiServerClientTest {
 			.addHeader("Content-Type", "application/json")
 			.setBodyDelay(500, TimeUnit.MILLISECONDS));
 
-		// when & then
-		assertThatThrownBy(() -> timeoutClient.getPrediction("005930"))
-			.isInstanceOf(RuntimeException.class)
-			.hasMessageContaining("AI Server connection failed");
-	}
+			// when & then
+			assertThatThrownBy(() -> timeoutClient.getPrediction("005930"))
+				.isInstanceOf(ExternalAiUnavailableException.class)
+				.hasMessageContaining("AI Server connection failed");
+		}
 
     @Test
     @DisplayName("AI 서버에서 리포트 PDF를 정상적으로 다운로드한다")
