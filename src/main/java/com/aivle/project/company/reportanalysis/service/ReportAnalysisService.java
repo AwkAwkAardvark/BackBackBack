@@ -47,7 +47,7 @@ public class ReportAnalysisService {
 
 		log.info("Fetching report analysis for company: {} ({})", company.getCorpName(), stockCode);
 
-		ReportApiResponse apiResponse = fetchReportWithRetry(stockCode);
+			ReportApiResponse apiResponse = fetchReportOrThrow(stockCode);
 
 		ReportAnalysisEntity analysis = ReportAnalysisEntity.builder()
 			.company(company)
@@ -71,28 +71,12 @@ public class ReportAnalysisService {
 		return ReportAnalysisResponse.from(company.getId(), savedAnalysis, contents);
 	}
 
-	private ReportApiResponse fetchReportWithRetry(String stockCode) {
-		int maxAttempts = 3;
-		long delayMillis = 500L;
-		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-			ReportApiResponse response = newsClient.fetchReport(stockCode);
-			if (response != null && response.news() != null && !response.news().isEmpty()) {
-				return response;
-			}
-			if (attempt < maxAttempts) {
-				sleep(delayMillis);
-			}
+	private ReportApiResponse fetchReportOrThrow(String stockCode) {
+		ReportApiResponse response = newsClient.fetchReport(stockCode);
+		if (response == null) {
+			throw new IllegalStateException("AI report response is null for stockCode: " + stockCode);
 		}
-		return newsClient.fetchReport(stockCode);
-	}
-
-	private void sleep(long delayMillis) {
-		try {
-			Thread.sleep(delayMillis);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throw new IllegalStateException("Retry sleep interrupted", e);
-		}
+		return response;
 	}
 
 	/**

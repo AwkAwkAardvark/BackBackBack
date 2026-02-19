@@ -2,6 +2,7 @@ package com.aivle.project.user.service;
 
 import com.aivle.project.common.error.CommonErrorCode;
 import com.aivle.project.common.error.CommonException;
+import com.aivle.project.common.util.NameMaskingUtil;
 import com.aivle.project.user.dto.AdminUserListItemDto;
 import com.aivle.project.user.entity.RoleName;
 import com.aivle.project.user.entity.UserStatus;
@@ -28,7 +29,13 @@ public class AdminUserQueryService {
 		return userRepository.findListByStatusAndDeletedAtIsNullOrderByIdAscExcludingRole(
 			UserStatus.ACTIVE,
 			RoleName.ROLE_ADMIN
-		);
+		).stream()
+			.map(user -> new AdminUserListItemDto(
+				user.id(),
+				NameMaskingUtil.mask(user.name()),
+				user.email()
+			))
+			.toList();
 	}
 
 	/**

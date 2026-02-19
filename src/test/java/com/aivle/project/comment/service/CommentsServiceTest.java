@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 import com.aivle.project.comment.dto.CommentCreateRequest;
 import com.aivle.project.comment.dto.CommentResponse;
@@ -15,7 +14,9 @@ import com.aivle.project.comment.repository.CommentsRepository;
 import com.aivle.project.common.error.CommonException;
 import com.aivle.project.post.entity.PostsEntity;
 import com.aivle.project.post.repository.PostsRepository;
+import com.aivle.project.post.service.PostReadAccessPolicy;
 import com.aivle.project.user.entity.UserEntity;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,29 @@ class CommentsServiceTest {
 	private PostsRepository postsRepository;
 
 	@Mock
+	private PostReadAccessPolicy postReadAccessPolicy;
+
+	@Mock
 	private com.aivle.project.comment.mapper.CommentMapper commentMapper;
+
+	@Test
+	@DisplayName("댓글 목록 조회 성공")
+	void listByPost_success() {
+		// given
+		Long postId = 10L;
+		CommentsEntity comment = mock(CommentsEntity.class);
+		PostsEntity post = mock(PostsEntity.class);
+
+		given(postsRepository.findByIdAndDeletedAtIsNull(postId)).willReturn(Optional.of(post));
+		given(commentsRepository.findByPostIdAndDeletedAtIsNullOrderByDepthAscSequenceAsc(postId)).willReturn(List.of(comment));
+		given(commentMapper.toResponse(comment)).willReturn(new CommentResponse(1L, "홍길동", postId, null, "댓글", 0, 0, null, null));
+
+		// when
+		List<CommentResponse> result = commentsService.listByPost(postId, null);
+
+		// then
+		assertThat(result).hasSize(1);
+	}
 
 	@Test
 	@DisplayName("댓글 생성 성공 - 최상위 댓글")

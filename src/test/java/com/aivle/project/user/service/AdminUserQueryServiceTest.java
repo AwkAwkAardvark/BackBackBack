@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 
 import com.aivle.project.common.error.CommonErrorCode;
 import com.aivle.project.common.error.CommonException;
+import com.aivle.project.common.util.NameMaskingUtil;
 import com.aivle.project.user.dto.AdminUserListItemDto;
 import com.aivle.project.user.entity.RoleName;
 import com.aivle.project.user.entity.UserStatus;
@@ -32,15 +33,19 @@ class AdminUserQueryServiceTest {
 	@DisplayName("활성 + 미삭제 사용자 목록을 반환한다")
 	void getActiveUsers_shouldReturnActiveUsers() {
 		// given
-		List<AdminUserListItemDto> expected = List.of(
+		List<AdminUserListItemDto> repositoryResult = List.of(
 			new AdminUserListItemDto(1L, "홍길동", "hong@test.com"),
 			new AdminUserListItemDto(2L, "김테스트", "kim@test.com")
+		);
+		List<AdminUserListItemDto> expected = List.of(
+			new AdminUserListItemDto(1L, NameMaskingUtil.mask("홍길동"), "hong@test.com"),
+			new AdminUserListItemDto(2L, NameMaskingUtil.mask("김테스트"), "kim@test.com")
 		);
 		given(userRepository.findListByStatusAndDeletedAtIsNullOrderByIdAscExcludingRole(
 			UserStatus.ACTIVE,
 			RoleName.ROLE_ADMIN
 		))
-			.willReturn(expected);
+			.willReturn(repositoryResult);
 
 		// when
 		List<AdminUserListItemDto> result = adminUserQueryService.getActiveUsers();

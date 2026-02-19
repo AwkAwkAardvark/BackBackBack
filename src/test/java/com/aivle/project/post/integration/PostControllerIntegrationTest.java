@@ -12,6 +12,7 @@ import com.aivle.project.category.entity.CategoriesEntity;
 import com.aivle.project.common.config.TestSecurityConfig;
 import com.aivle.project.common.dto.ApiResponse;
 import com.aivle.project.common.dto.PageResponse;
+import com.aivle.project.common.util.NameMaskingUtil;
 import com.aivle.project.post.dto.PostResponse;
 import com.aivle.project.post.dto.PostUserCreateRequest;
 import com.aivle.project.post.dto.PostUserUpdateRequest;
@@ -114,7 +115,7 @@ class PostControllerIntegrationTest {
 
 		assertThat(apiResponse.success()).isTrue();
 		assertThat(apiResponse.data().title()).isEqualTo("질문입니다");
-		assertThat(apiResponse.data().name()).isEqualTo("test-user");
+		assertThat(apiResponse.data().name()).isEqualTo(NameMaskingUtil.mask("test-user"));
 		assertThat(apiResponse.data().categoryId()).isEqualTo(qnaCategory.getId());
 	}
 
@@ -231,7 +232,7 @@ class PostControllerIntegrationTest {
 
 		assertThat(apiResponse.data().content()).hasSize(2);
 		assertThat(apiResponse.data().content())
-			.allMatch(post -> post.name().equals("test-user"));
+			.allMatch(post -> post.name().equals(NameMaskingUtil.mask("test-user")));
 		assertThat(apiResponse.data().content())
 			.noneMatch(post -> post.title().contains("userB"));
 	}

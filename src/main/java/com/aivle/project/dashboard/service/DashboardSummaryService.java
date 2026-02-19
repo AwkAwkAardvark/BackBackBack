@@ -19,12 +19,13 @@ import com.aivle.project.watchlist.repository.CompanyWatchlistRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -128,14 +129,11 @@ public class DashboardSummaryService {
 
 		int latestActualQuarterKey = resolveLatestActualQuarterKey(watchlists);
 
-		return companyKeyMetricRepository.findByCompanyIdIn(companyIds).stream()
-			.filter(metric -> metric.getQuarter().getQuarterKey() <= latestActualQuarterKey)
-			.filter(metric -> metric.getRiskLevel() != null)
-			.sorted(
-				Comparator.comparing((CompanyKeyMetricEntity metric) -> metric.getQuarter().getQuarterKey()).reversed()
-					.thenComparing(metric -> metric.getCompany().getId())
-			)
-			.limit(limit)
+		return companyKeyMetricRepository.findRiskRecordsByCompanyIds(
+				companyIds,
+				latestActualQuarterKey,
+				PageRequest.of(0, limit)
+			).stream()
 			.map(metric -> new CompanyQuarterRiskDto(
 				String.valueOf(metric.getCompany().getId()),
 				metric.getCompany().getCorpName(),
@@ -172,11 +170,14 @@ public class DashboardSummaryService {
 	}
 
 	private List<RiskStatusBucketDto> buildTrend(List<Long> companyIds, List<Integer> windowQuarterKeys, int latestActualQuarterKey) {
+		Map<Integer, List<CompanyKeyMetricEntity>> metricsByQuarterKey = companyKeyMetricRepository
+			.findByCompanyIdInAndQuarterKeyIn(companyIds, windowQuarterKeys).stream()
+			.collect(Collectors.groupingBy(metric -> metric.getQuarter().getQuarterKey()));
+
 		List<RiskStatusBucketDto> buckets = new ArrayList<>();
 		for (int quarterKey : windowQuarterKeys) {
 			boolean forecast = quarterKey > latestActualQuarterKey;
-			List<CompanyKeyMetricEntity> metrics = companyKeyMetricRepository
-				.findByCompanyIdInAndQuarter_QuarterKey(companyIds, quarterKey);
+			List<CompanyKeyMetricEntity> metrics = metricsByQuarterKey.getOrDefault(quarterKey, List.of());
 			RiskStatusDistributionDto distribution = countDistribution(metrics);
 			RiskStatusBucketDto.DataType dataType = forecast
 				? RiskStatusBucketDto.DataType.FORECAST
@@ -308,19 +309,14 @@ public class DashboardSummaryService {
 	}
 
 	private KpiCardDto buildRiskDwellTimeKpi(List<Long> companyIds, int latestActualQuarterKey) {
-		List<CompanyKeyMetricEntity> actualMetrics = companyKeyMetricRepository
-			.findByCompanyIdIn(companyIds).stream()
-			.filter(metric -> metric.getQuarter().getQuarterKey() <= latestActualQuarterKey)
-			.toList();
+		List<CompanyKeyMetricRepository.CompanyRiskHistoryProjection> actualMetrics = companyKeyMetricRepository
+			.findRiskHistoryByCompanyIds(companyIds, latestActualQuarterKey);
 
 		Map<Long, Map<Integer, CompanyKeyMetricRiskLevel>> riskHistoryByCompany = new HashMap<>();
-		for (CompanyKeyMetricEntity metric : actualMetrics) {
-			if (metric.getRiskLevel() == null) {
-				continue;
-			}
+		for (CompanyKeyMetricRepository.CompanyRiskHistoryProjection metric : actualMetrics) {
 			riskHistoryByCompany
-				.computeIfAbsent(metric.getCompany().getId(), key -> new HashMap<>())
-				.put(metric.getQuarter().getQuarterKey(), metric.getRiskLevel());
+				.computeIfAbsent(metric.getCompanyId(), key -> new HashMap<>())
+				.put(metric.getQuarterKey(), metric.getRiskLevel());
 		}
 
 		double currentDwellTime = calculateAverageRiskDwellTime(riskHistoryByCompany, latestActualQuarterKey);

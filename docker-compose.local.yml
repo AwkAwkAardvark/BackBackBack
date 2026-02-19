@@ -1,0 +1,68 @@
+services:
+  app:
+    env_file:
+      - ${LOCAL_ENV_FILE:-.env}
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      REDIS_HOST: ${REDIS_HOST_DOCKER:-redis}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-bigprj}?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-${MYSQL_USER:-bigprj}}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-${MYSQL_PASSWORD:-bigprj}}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      APP_AI_JOB_KAFKA_ENABLED: ${APP_AI_JOB_KAFKA_ENABLED:-true}
+      SPRING_THREADS_VIRTUAL_ENABLED: ${SPRING_THREADS_VIRTUAL_ENABLED:-false}
+      APP_VIRTUAL_THREAD_ENABLED: ${APP_VIRTUAL_THREAD_ENABLED:-false}
+      APP_VIRTUAL_THREAD_INSIGHT_ENABLED: ${APP_VIRTUAL_THREAD_INSIGHT_ENABLED:-false}
+      APP_VIRTUAL_THREAD_EMAIL_ENABLED: ${APP_VIRTUAL_THREAD_EMAIL_ENABLED:-false}
+    volumes:
+      - ${JWT_HOST_PATH:-./secrets/jwt}:/secrets/jwt:ro
+      - ${UPLOAD_HOST_PATH:-./upload/files}:/var/app/uploads
+      - ${LOG_HOST_PATH:-./logs}:/var/log/backbackback
+    depends_on:
+      - redis
+      - mysql
+      - kafka
+
+  redis:
+    env_file:
+      - ${LOCAL_ENV_FILE:-.env}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  mysql:
+    image: mysql:8.0
+    container_name: project-mysql-local
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-bigprj}
+      MYSQL_USER: ${MYSQL_USER:-bigprj}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-bigprj}
+      TZ: Asia/Seoul
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: project-kafka-local
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data/kraft-combined-logs
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+
+volumes:
+  mysql-data:

@@ -35,9 +35,13 @@ dependencies {
 	implementation 'org.springframework.batch:spring-batch-core'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.springframework.kafka:spring-kafka'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 	implementation 'org.springframework.boot:spring-boot-starter-aop'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+	implementation 'io.github.resilience4j:resilience4j-reactor:2.2.0'
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
 	// Email
@@ -91,6 +95,7 @@ dependencies {
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
 	testImplementation 'io.projectreactor:reactor-test'
+	testImplementation 'org.springframework.kafka:spring-kafka-test'
 	mockitoAgent('org.mockito:mockito-core') {
 		transitive = false
 	}
@@ -98,7 +103,20 @@ dependencies {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	def excludeTagsProp = (project.findProperty("excludeTags") ?: System.getenv("JUNIT_EXCLUDE_TAGS"))?.toString()?.trim()
+	def excludeIntegrationByName = (project.findProperty("excludeIntegrationByName") ?: System.getenv("JUNIT_EXCLUDE_INTEGRATION_BY_NAME"))?.toString()?.toBoolean()
+	if (excludeTagsProp) {
+		def excludeTagList = excludeTagsProp.split(',')*.trim().findAll { !it.isEmpty() }
+		useJUnitPlatform {
+			excludeTags excludeTagList as String[]
+		}
+	} else {
+		useJUnitPlatform()
+	}
+	if (excludeIntegrationByName) {
+		// CI 속도 개선용: 명시적으로 IntegrationTest 네이밍을 제외
+		exclude '**/*IntegrationTest.class'
+	}
 	jvmArgs "-javaagent:${configurations.mockitoAgent.singleFile}"
 	systemProperty "spring.profiles.active", "test"
 }

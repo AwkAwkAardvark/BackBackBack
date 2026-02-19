@@ -35,6 +35,16 @@ spring:
       max-file-size: 10MB
       max-request-size: 20MB
       file-size-threshold: 2KB
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      group-id: ${APP_AI_JOB_KAFKA_GROUP_ID:ai-job-consumer}
 
 springdoc:
   api-docs:
@@ -56,10 +66,22 @@ springdoc:
 app:
   api:
     version: v1
+  security:
+    token-hash:
+      pepper-base64: ${APP_TOKEN_HASH_PEPPER_B64}
+  auth:
+    login-attempt:
+      max-failures: ${APP_AUTH_LOGIN_MAX_FAILURES:5}
+      lock-duration: ${APP_AUTH_LOGIN_LOCK_DURATION:15m}
+      failure-window: ${APP_AUTH_LOGIN_FAILURE_WINDOW:15m}
   virtual-thread:
     enabled: ${APP_VIRTUAL_THREAD_ENABLED:false}
     insight-enabled: ${APP_VIRTUAL_THREAD_INSIGHT_ENABLED:false}
     email-enabled: ${APP_VIRTUAL_THREAD_EMAIL_ENABLED:false}
+  ai:
+    job:
+      kafka-enabled: ${APP_AI_JOB_KAFKA_ENABLED:false}
+      request-topic: ${APP_AI_JOB_REQUEST_TOPIC:ai-job-request}
   file:
     upload:
       max-size: 10485760
@@ -99,3 +121,46 @@ turnstile:
 ai:
   server:
     url: ${AI_SERVER_URL:https://bigbig-ai-server.azurewebsites.net}
+    http:
+      connect-timeout-ms: ${AI_SERVER_CONNECT_TIMEOUT_MS:5000}
+      response-timeout-ms: ${AI_SERVER_RESPONSE_TIMEOUT_MS:70000}
+      call-timeout-ms: ${AI_SERVER_CALL_TIMEOUT_MS:80000}
+      max-connections: ${AI_SERVER_MAX_CONNECTIONS:100}
+      pending-acquire-timeout-ms: ${AI_SERVER_PENDING_ACQUIRE_TIMEOUT_MS:2000}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      aiServer:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        waitDurationInOpenState: 20s
+        failureRateThreshold: 50
+        slowCallDurationThreshold: 70s
+        slowCallRateThreshold: 60
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - org.springframework.web.reactive.function.client.WebClientException
+          - reactor.core.Exceptions$ReactiveException
+  retry:
+    instances:
+      aiServer:
+        maxAttempts: 1
+        waitDuration: 300ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 3
+        retryExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+          - org.springframework.web.reactive.function.client.WebClientException
+  bulkhead:
+    instances:
+      aiServer:
+        maxConcurrentCalls: 20
+        maxWaitDuration: 0ms

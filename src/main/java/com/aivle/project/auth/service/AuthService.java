@@ -39,13 +39,29 @@ public class AuthService {
 	private final JwtTokenService jwtTokenService;
 	private final RefreshTokenService refreshTokenService;
 	private final AccessTokenBlacklistService accessTokenBlacklistService;
+	private final LoginAttemptService loginAttemptService;
 	private final CustomUserDetailsService userDetailsService;
 	private final UserDomainService userDomainService;
 	private final PasswordEncoder passwordEncoder;
 	private final com.aivle.project.user.mapper.UserMapper userMapper;
 
 	public AuthLoginResponse login(LoginRequest request, String ipAddress) {
-		Authentication authentication = authenticate(request.getEmail(), request.getPassword());
+		String email = normalizeEmail(request.getEmail());
+		loginAttemptService.validateNotLocked(email);
+		Authentication authentication;
+		try {
+			authentication = authenticate(request.getEmail(), request.getPassword());
+		} catch (AuthException ex) {
+			if (ex.getErrorCode() == AuthErrorCode.INVALID_CREDENTIALS) {
+				boolean locked = loginAttemptService.recordFailure(email);
+				if (locked) {
+					throw new AuthException(AuthErrorCode.LOGIN_ATTEMPT_LIMITED);
+				}
+			}
+			throw ex;
+		}
+
+		loginAttemptService.clearFailures(email);
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 		String deviceId = normalizeDeviceId(request.getDeviceId());
 
@@ -170,5 +186,12 @@ public class AuthService {
 			return epochValue * 1000;
 		}
 		return epochValue;
+	}
+
+	private String normalizeEmail(String email) {
+		if (email == null) {
+			return "";
+		}
+		return email.trim();
 	}
 }

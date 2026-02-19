@@ -12,13 +12,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ApiLoggingAspectTest {
 
-	private ApiLoggingAspect apiLoggingAspect;
-	private ObjectMapper objectMapper;
+	private ApiLogProcessor apiLogProcessor;
 
 	@BeforeEach
 	void setUp() {
-		objectMapper = new ObjectMapper();
-		apiLoggingAspect = new ApiLoggingAspect(objectMapper);
+		apiLogProcessor = new ApiLogProcessor(new ObjectMapper());
 	}
 
 	@Test
@@ -28,11 +26,9 @@ class ApiLoggingAspectTest {
 		map.put("email", "test@example.com");
 		map.put("password", "secret123");
 
-		String result = apiLoggingAspect.mask(map);
+		String result = apiLogProcessor.maskArgs(new Object[]{map});
 
-		// 이메일도 민감한 정보이므로 마스킹됨
-		assertThat(result).contains("\"email\":\"te***@example.com\"");
-		assertThat(result).contains("\"password\":\"****\"");
+		assertThat(result).contains("Map(size=2)");
 		assertThat(result).doesNotContain("secret123");
 	}
 
@@ -43,10 +39,9 @@ class ApiLoggingAspectTest {
 		map.put("accessToken", "abc.def.ghi");
 		map.put("refreshToken", "xyz.uvw.rst");
 
-		String result = apiLoggingAspect.mask(map);
+		String result = apiLogProcessor.maskArgs(new Object[]{map});
 
-		assertThat(result).contains("\"accessToken\":\"****\"");
-		assertThat(result).contains("\"refreshToken\":\"****\"");
+		assertThat(result).contains("Map(size=2)");
 		assertThat(result).doesNotContain("abc.def.ghi");
 		assertThat(result).doesNotContain("xyz.uvw.rst");
 	}
@@ -54,8 +49,30 @@ class ApiLoggingAspectTest {
 	@Test
 	@DisplayName("단순 문자열이나 숫자는 마스킹되지 않아야 한다")
 	void mask_shouldNotMaskSimpleTypes() {
-		assertThat(apiLoggingAspect.mask("hello")).isEqualTo("\"hello\"");
-		assertThat(apiLoggingAspect.mask(123)).isEqualTo("123");
+		assertThat(apiLogProcessor.maskArgs(new Object[]{"hello"})).isEqualTo("[\"hello\"]");
+		assertThat(apiLogProcessor.maskArgs(new Object[]{123})).isEqualTo("[123]");
+	}
+
+	@Test
+	@DisplayName("Bearer 토큰 문자열은 마스킹되어야 한다")
+	void mask_shouldMaskBearerTokenString() {
+		String result = apiLogProcessor.maskArgs(new Object[]{"Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature"});
+		assertThat(result).isEqualTo("[\"Bearer ****\"]");
+	}
+
+	@Test
+	@DisplayName("JWT 토큰 문자열은 마스킹되어야 한다")
+	void mask_shouldMaskJwtTokenString() {
+		String result = apiLogProcessor.maskArgs(new Object[]{"eyJhbGciOiJIUzI1NiJ9.payload.signature"});
+		assertThat(result).isEqualTo("[\"****\"]");
+	}
+
+	@Test
+	@DisplayName("Cookie 문자열에 민감 키가 있으면 마스킹되어야 한다")
+	void mask_shouldMaskCookieStringWithSensitiveKey() {
+		String cookieHeader = "refresh_token=abc.def.ghi; theme=light";
+		String result = apiLogProcessor.maskArgs(new Object[]{cookieHeader});
+		assertThat(result).isEqualTo("[\"[COOKIE_MASKED]\"]");
 	}
 
 	@Test
@@ -68,10 +85,9 @@ class ApiLoggingAspectTest {
 		root.put("user", nested);
 		root.put("token", "outer-token");
 
-		String result = apiLoggingAspect.mask(root);
+		String result = apiLogProcessor.maskArgs(new Object[]{root});
 
-		assertThat(result).contains("\"password\":\"****\"");
-		assertThat(result).contains("\"token\":\"****\"");
+		assertThat(result).contains("Map(size=2)");
 		assertThat(result).doesNotContain("inner-secret");
 		assertThat(result).doesNotContain("outer-token");
 	}

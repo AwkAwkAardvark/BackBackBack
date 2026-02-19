@@ -73,6 +73,7 @@ public class SecurityConfig {
 		"/openapi/**",
 		"/actuator/health",
 		"/actuator/health/**",
+		"/actuator/prometheus",
 		"/error"
 	};
 
@@ -80,8 +81,7 @@ public class SecurityConfig {
 		"/api/auth/login",
 		"/api/auth/refresh",
 		"/api/auth/signup",
-		"/api/auth/verify-email",
-		"/api/auth/resend-verification"
+		"/api/auth/verify-email"
 	};
 
 	private static final String[] PUBLIC_GET_ENDPOINTS = {
@@ -122,7 +122,8 @@ public class SecurityConfig {
 	private static final String[] USER_POST_ENDPOINTS = {
 		"/api/companies/*/news/refresh-latest",
 		"/api/watchlists",
-		"/api/companies/*/ai-report"
+		"/api/companies/*/ai-report",
+		"/api/auth/resend-verification"
 	};
 
 	private static final String[] USER_DELETE_ENDPOINTS = {
@@ -215,7 +216,7 @@ public class SecurityConfig {
 		}
 		configuration.setAllowedOrigins(origins);
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
+		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "X-CSRF-Token"));
 		configuration.setAllowCredentials(true);
 		configuration.setMaxAge(3600L);
 

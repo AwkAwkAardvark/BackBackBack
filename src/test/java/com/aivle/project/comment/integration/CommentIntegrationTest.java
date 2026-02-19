@@ -7,6 +7,7 @@ import com.aivle.project.comment.dto.CommentCreateRequest;
 import com.aivle.project.comment.dto.CommentResponse;
 import com.aivle.project.comment.service.CommentsService;
 import com.aivle.project.common.config.TestSecurityConfig;
+import com.aivle.project.common.util.NameMaskingUtil;
 import com.aivle.project.post.entity.PostStatus;
 import com.aivle.project.post.entity.PostsEntity;
 import com.aivle.project.user.entity.UserEntity;
@@ -57,18 +58,18 @@ class CommentIntegrationTest {
 		CommentResponse childResponse = commentsService.create(writer, childRequest);
 
 		// then: 계층 구조가 올바르게 조회된다
-		List<CommentResponse> responses = commentsService.listByPost(post.getId());
+		List<CommentResponse> responses = commentsService.listByPost(post.getId(), null);
 		assertThat(responses).hasSize(2);
 
 		CommentResponse root = responses.get(0);
 		assertThat(root.id()).isEqualTo(parentResponse.id());
-		assertThat(root.name()).isEqualTo("댓글러");
+		assertThat(root.name()).isEqualTo(NameMaskingUtil.mask("댓글러"));
 		assertThat(root.depth()).isZero();
 
 		CommentResponse reply = responses.get(1);
 		assertThat(reply.id()).isEqualTo(childResponse.id());
 		assertThat(reply.parentId()).isEqualTo(parentResponse.id());
-		assertThat(reply.name()).isEqualTo("작성자");
+		assertThat(reply.name()).isEqualTo(NameMaskingUtil.mask("작성자"));
 		assertThat(reply.depth()).isEqualTo(1);
 	}
 
@@ -99,7 +100,7 @@ class CommentIntegrationTest {
 		CommentResponse replyTwo = commentsService.create(writer, replyTwoRequest);
 
 		// when
-		List<CommentResponse> responses = commentsService.listByPost(post.getId());
+		List<CommentResponse> responses = commentsService.listByPost(post.getId(), null);
 
 		// then
 		assertThat(responses).hasSize(3);

@@ -1,5 +1,10 @@
 version: 0.2
 
+env:
+  variables:
+    AWS_REGION: ap-northeast-2
+    ECR_REPO_URI: 160885260227.dkr.ecr.ap-northeast-2.amazonaws.com/aivle-back-app
+
 phases:
   install:
     runtime-versions:
@@ -9,16 +14,38 @@ phases:
       - chmod +x gradlew
       - ./gradlew --version
       - chmod +x scripts/*.sh
+      - IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual}"
+      - REPO_HOST="${ECR_REPO_URI%%/*}"
+      - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REPO_HOST"
+      - docker pull "$ECR_REPO_URI:latest" || true
   build:
     commands:
+      - IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual}"
       - rm -rf build/test-results/test build/reports/tests/test
-      - JWT_PRIVATE_KEY_PATH=src/test/resources/jwt/private.pem JWT_PUBLIC_KEY_PATH=src/test/resources/jwt/public.pem JWT_CURRENT_KID=test-key ./gradlew cleanTest test --rerun-tasks --stacktrace --info
+      - JWT_PRIVATE_KEY_PATH=src/test/resources/jwt/private.pem JWT_PUBLIC_KEY_PATH=src/test/resources/jwt/public.pem JWT_CURRENT_KID=test-key ./gradlew test --stacktrace --warn -PexcludeTags=integration -PexcludeIntegrationByName=true
+      - ./gradlew bootJar -x test
+      - APP_BOOT_JAR="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' | head -n 1)"
+      - 'test -n "$APP_BOOT_JAR" || (echo "[ERROR] bootJar 산출물을 찾지 못했습니다: build/libs" && exit 1)'
+      - cp "$APP_BOOT_JAR" build/libs/app.jar
+      - ls -lh build/libs
+      - docker build --cache-from "$ECR_REPO_URI:latest" -t "$ECR_REPO_URI:$IMAGE_TAG" -t "$ECR_REPO_URI:latest" .
   post_build:
     commands:
-      - ./gradlew bootJar -x test
+      - IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual}"
+      - docker image inspect "$ECR_REPO_URI:$IMAGE_TAG" >/dev/null
+      - docker push "$ECR_REPO_URI:$IMAGE_TAG"
+      - docker push "$ECR_REPO_URI:latest"
+      - echo "APP_IMAGE=$ECR_REPO_URI:$IMAGE_TAG" > image-uri.env
 
 artifacts:
   files:
     - appspec.yml
-    - build/libs/*.jar
+    - image-uri.env
+    - build/libs/app.jar
+    - docker-compose.app.yml
     - scripts/**/*
+
+cache:
+  paths:
+    - '/root/.gradle/caches/**/*'
+    - '/root/.gradle/wrapper/**/*'

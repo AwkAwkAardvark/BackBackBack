@@ -17,6 +17,7 @@ import com.aivle.project.company.reportanalysis.repository.ReportContentReposito
 import com.aivle.project.company.reportanalysis.service.ReportAnalysisService;
 import com.aivle.project.company.repository.CompaniesRepository;
 import com.aivle.project.company.service.CompanyReputationScoreService;
+import com.aivle.project.common.error.ExternalAiUnavailableException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,9 +33,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -195,5 +198,60 @@ class CompanyInsightServiceTest {
 		verify(newsService).refreshLatestNews("123456");
 		verify(reportAnalysisService).fetchAndStoreReport("123456");
 		verify(companyReputationScoreService).syncExternalHealthScoreIfPresent(companyId, "123456");
+	}
+
+	@Test
+	@DisplayName("외부 AI 호출이 실패해도 기존 DB 인사이트가 있으면 fallback 응답을 반환한다")
+	void getInsights_ReturnsFallbackItemsWhenExternalFails() {
+		// given
+		Long companyId = 1L;
+		CompaniesEntity company = CompaniesEntity.create("001", "테스트기업", "TEST", "123456", LocalDate.now());
+		ReportAnalysisEntity reportAnalysis = ReportAnalysisEntity.create(company, "테스트기업", 1, BigDecimal.ONE, LocalDateTime.now());
+		ReportContentEntity reportContent = ReportContentEntity.create(
+			reportAnalysis, "보고서", "요약", BigDecimal.ONE, LocalDateTime.of(2026, 2, 6, 0, 0), "https://r.example", null
+		);
+
+		when(companiesRepository.findById(companyId)).thenReturn(Optional.of(company));
+		when(reportAnalysisRepository.findTopByCompanyIdOrderByAnalyzedAtDesc(companyId)).thenReturn(Optional.of(reportAnalysis));
+		when(newsAnalysisRepository.findTopByCompanyIdOrderByAnalyzedAtDesc(companyId)).thenReturn(Optional.empty());
+		when(reportContentRepository.existsByReportAnalysisId(any())).thenReturn(true);
+		when(newsArticleRepository.findTopByNewsAnalysisCompanyIdOrderByPublishedAtDesc(companyId)).thenReturn(Optional.empty());
+		when(reportContentRepository.findByReportAnalysisIdOrderByPublishedAtDesc(eq(reportAnalysis.getId()), any(PageRequest.class)))
+			.thenReturn(new PageImpl<>(List.of(reportContent)));
+		when(newsAnalysisRepository.findTopByCompanyIdOrderByAnalyzedAtDesc(companyId)).thenReturn(Optional.empty());
+		when(newsService.refreshLatestNews("123456"))
+			.thenThrow(new ExternalAiUnavailableException("AI Server connection failed", "AI_TIMEOUT", new RuntimeException("timeout")));
+		doThrow(new ExternalAiUnavailableException("AI Server connection failed", "AI_UNAVAILABLE", new RuntimeException("unavailable")))
+			.when(companyReputationScoreService).syncExternalHealthScoreIfPresent(companyId, "123456");
+
+		// when
+		CompanyInsightService.InsightResult result = companyInsightService.getInsights(companyId, 0, 1, 0, 1, false);
+
+		// then
+		assertThat(result.items()).hasSize(1);
+		assertThat(result.items().get(0).getType()).isEqualTo(CompanyInsightType.REPORT);
+	}
+
+	@Test
+	@DisplayName("외부 AI 호출이 실패하고 기존 데이터도 없으면 503 예외를 던진다")
+	void getInsights_ThrowsWhenNoDataAndExternalFails() {
+		// given
+		Long companyId = 1L;
+		CompaniesEntity company = CompaniesEntity.create("001", "테스트기업", "TEST", "123456", LocalDate.now());
+		when(companiesRepository.findById(companyId)).thenReturn(Optional.of(company));
+		when(reportAnalysisRepository.findTopByCompanyIdOrderByAnalyzedAtDesc(companyId)).thenReturn(Optional.empty());
+		when(newsAnalysisRepository.findTopByCompanyIdOrderByAnalyzedAtDesc(companyId)).thenReturn(Optional.empty());
+		when(reportContentRepository.findTopByReportAnalysisCompanyIdOrderByPublishedAtDesc(companyId)).thenReturn(Optional.empty());
+		when(newsArticleRepository.findTopByNewsAnalysisCompanyIdOrderByPublishedAtDesc(companyId)).thenReturn(Optional.empty());
+		when(reportAnalysisService.fetchAndStoreReport("123456"))
+			.thenThrow(new ExternalAiUnavailableException("AI Server connection failed", "AI_UNAVAILABLE", new RuntimeException("unavailable")));
+		when(newsService.refreshLatestNews("123456"))
+			.thenThrow(new ExternalAiUnavailableException("AI Server connection failed", "AI_TIMEOUT", new RuntimeException("timeout")));
+		doThrow(new ExternalAiUnavailableException("AI Server connection failed", "AI_TIMEOUT", new RuntimeException("timeout")))
+			.when(companyReputationScoreService).syncExternalHealthScoreIfPresent(companyId, "123456");
+
+		// when & then
+		assertThatThrownBy(() -> companyInsightService.getInsights(companyId, 0, 1, 0, 1, false))
+			.isInstanceOf(ExternalAiUnavailableException.class);
 	}
 }

@@ -5,6 +5,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -29,6 +30,7 @@ public class WebConfig implements WebMvcConfigurer {
 	 * WebClient 빈 설정 (Turnstile API 호출용)
 	 */
 	@Bean
+	@Primary
 	public WebClient webClient() {
 		return WebClient.builder()
 			.clientConnector(new ReactorClientHttpConnector(
